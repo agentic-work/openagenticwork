@@ -154,13 +154,18 @@ openagenticwork/
 
 ## License
 
-[License TBD]
+Copyright (c) 2026 Agenticwork LLC
 
 ## Contributing
 
-Contributions are welcome! Please read our contributing guidelines before submitting a pull request.
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting a pull request.
 
 ## Support
 
-- GitHub Issues: https://github.com/agentic-work/openagenticwork/issues
-- Documentation: [TBD]
+- **Documentation**: https://docs.agenticwork.io
+- **GitHub Issues**: https://github.com/agentic-work/openagenticwork/issues
+- **Email**: support@agenticwork.io
+
+---
+
+Built with ❤️ by [Agenticwork](https://agenticwork.io)
