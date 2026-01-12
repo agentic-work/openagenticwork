@@ -112,6 +112,8 @@ jobs:
           file: ./services/agenticwork-api/Dockerfile
           push: false
           tags: openagenticwork-api:latest
+          build-args: |
+            SRC_PATH=services/agenticwork-api
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -122,5 +124,7 @@ jobs:
           file: ./services/agenticwork-ui/Dockerfile
           push: false
           tags: openagenticwork-ui:latest
+          build-args: |
+            SRC_PATH=services/agenticwork-ui
           cache-from: type=gha
           cache-to: type=gha,mode=max
