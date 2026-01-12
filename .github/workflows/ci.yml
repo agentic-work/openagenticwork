@@ -128,3 +128,23 @@ jobs:
             SRC_PATH=services/agenticwork-ui
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build MCP Proxy image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./services/agenticwork-mcp-proxy/Dockerfile
+          push: false
+          tags: openagenticwork-mcp-proxy:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Agenticode Manager image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./services/agenticode-manager/Dockerfile
+          push: false
+          tags: openagenticwork-agenticode-manager:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
