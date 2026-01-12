@@ -17,7 +17,7 @@
   },
   "scripts": {
     "build": "tsc && npm run copy-skills",
-    "copy-skills": "cp -r src/skills/builtin dist/skills/",
+    "copy-skills": "mkdir -p dist/skills && (cp -r src/skills/builtin dist/skills/ 2>/dev/null || true)",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit"
