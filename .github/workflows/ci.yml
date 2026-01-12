@@ -1,6 +1,6 @@
 # OpenAgenticWork CI Pipeline
 # https://agenticwork.io
-# Copyright (c) 2025 Agentic Work, Inc.
+# Copyright (c) 2026 Agenticwork LLC
 
 name: CI
 
@@ -28,12 +28,17 @@ jobs:
         with:
           version: 10
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install API dependencies
+        working-directory: services/agenticwork-api
+        run: pnpm install
 
       - name: Lint API
         working-directory: services/agenticwork-api
         run: pnpm lint || true
+
+      - name: Install UI dependencies
+        working-directory: services/agenticwork-ui
+        run: pnpm install
 
       - name: Lint UI
         working-directory: services/agenticwork-ui

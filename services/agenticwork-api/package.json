@@ -9,8 +9,7 @@
   },
   "main": "dist/server.js",
   "scripts": {
-    "build": "prisma generate && prisma generate --schema=prisma/flowise.prisma && tsc",
-    "db:generate:flowise": "prisma generate --schema=prisma/flowise.prisma",
+    "build": "prisma generate && tsc",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "type-check": "tsc --noEmit",
