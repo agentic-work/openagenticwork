@@ -1,0 +1,78 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment files (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# Secrets and credentials
+secrets/
+*.pem
+*.key
+*-service-account.json
+gcp-*.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Docker
+docker/secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env/
+*.egg-info/
+.eggs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Lock files (keep for reproducibility)
+# pnpm-lock.yaml
+# package-lock.json
+
+# Generated files
+generated/
+*.tsbuildinfo
+
+# Volumes (when running locally)
+postgres_data/
+redis_data/
+milvus_data/
+minio_data/
+code_workspaces/

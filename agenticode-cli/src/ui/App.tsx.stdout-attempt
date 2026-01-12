@@ -1,0 +1,374 @@
+/**
+ * Simplified App Component - Natural Terminal Scrolling
+ *
+ * Key changes from previous version:
+ * - NO Static component (causes rendering issues)
+ * - Prints completed messages directly to stdout
+ * - Only renders current streaming content + input in Ink
+ * - Terminal handles scrolling naturally
+ * - Input always stays at bottom
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Box, Text, useApp, useInput } from 'ink';
+import { Banner, Message, ResizableInput, StatusBar, TaskList, ConfirmationDialog } from './components/index.js';
+import { ToolExecutionDisplay, type ToolExecution } from './components/ToolExecutionDisplay.js';
+import { LiveThinkingDisplay } from './components/LiveThinkingDisplay.js';
+import { colors } from './themes/colors.js';
+import type { ChatSession } from '../core/session.js';
+import { DestructiveAction } from '../core/hitl.js';
+import { getVersion } from '../version.js';
+import { executeCommand, isCommand, type CommandContext } from '../core/commands.js';
+import type { AuthClient } from '../core/auth-client.js';
+import type { Task } from './components/TaskList.js';
+
+interface AppProps {
+  session: ChatSession;
+  model: string;
+  workingDirectory: string;
+  initialPrompt?: string;
+  yoloMode?: boolean;
+  authClient?: AuthClient;
+}
+
+type AppState = 'idle' | 'thinking' | 'streaming';
+
+// Parse tool execution from streaming content
+function parseToolExecution(content: string): ToolExecution[] {
+  const executions: ToolExecution[] = [];
+  const lines = content.split('\n');
+  let current: ToolExecution | null = null;
+
+  for (const line of lines) {
+    const toolMatch = line.match(/^●\s+(\w+)\((.*)\)/);
+    if (toolMatch) {
+      if (current) {
+        current.status = 'success';
+        current.endTime = Date.now();
+        executions.push(current);
+      }
+      current = {
+        id: `tool_${executions.length}_${Date.now()}`,
+        name: toolMatch[1],
+        args: toolMatch[2],
+        status: 'running',
+        startTime: Date.now(),
+        output: '',
+      };
+      continue;
+    }
+
+    if (current && (line.match(/^\s*⎿/) || line.match(/^\s{5,}/))) {
+      const outputLine = line.replace(/^\s*⎿\s*/, '').trim();
+      if (outputLine) {
+        current.output += (current.output ? '\n' : '') + outputLine;
+      }
+    }
+  }
+
+  if (current) {
+    current.status = 'success';
+    current.endTime = Date.now();
+    executions.push(current);
+  }
+
+  return executions;
+}
+
+// Strip tool markers from text
+function stripToolMarkers(content: string): string {
+  return content
+    .split('\n')
+    .filter(line => !line.match(/^●\s+\w+\(/) && !line.match(/^\s*⎿/))
+    .join('\n')
+    .trim();
+}
+
+// Parse tasks from content
+function parseTasks(content: string): Task[] {
+  const tasks: Task[] = [];
+  const patterns = [
+    /^[-*]\s*\[\s*\]\s*(.+)$/gm,
+    /^[-*]\s*\[x\]\s*(.+)$/gim,
+    /^☐\s+(.+)$/gm,
+    /^☑\s+(.+)$/gm,
+  ];
+
+  let id = 0;
+  for (const pattern of patterns) {
+    const matches = content.matchAll(pattern);
+    for (const match of matches) {
+      const taskContent = match[1].trim();
+      if (taskContent && taskContent.length >= 5) {
+        const isChecked = match[0].includes('[x]') || match[0].includes('☑');
+        tasks.push({
+          id: `task_${id++}`,
+          content: taskContent,
+          status: isChecked ? 'completed' : 'pending',
+        });
+      }
+    }
+  }
+
+  return tasks;
+}
+
+interface PendingHITLAction {
+  action: DestructiveAction;
+  toolCall: { name: string; id: string; arguments: Record<string, unknown> };
+  resolve: (approved: boolean) => void;
+}
+
+export const App: React.FC<AppProps> = ({
+  session,
+  model: initialModel,
+  workingDirectory,
+  initialPrompt,
+  yoloMode = false,
+  authClient,
+}) => {
+  const { exit } = useApp();
+  const [state, setState] = useState<AppState>('idle');
+  const [streamingContent, setStreamingContent] = useState('');
+  const [streamingTools, setStreamingTools] = useState<ToolExecution[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksPanelVisible, setTasksPanelVisible] = useState(true);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [tokenCount, setTokenCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [currentModel, setCurrentModel] = useState(initialModel);
+  const [pendingHITL, setPendingHITL] = useState<PendingHITLAction | null>(null);
+  const [thinkingStartTime, setThinkingStartTime] = useState<number | null>(null);
+  const [bannerShown, setBannerShown] = useState(false);
+
+  // Keyboard shortcuts
+  useInput((input, key) => {
+    if (key.ctrl && input === 'c') {
+      if (state !== 'idle') {
+        session.abort();
+        setState('idle');
+      } else {
+        exit();
+      }
+    } else if (key.ctrl && input === 'o') {
+      setExpandedItems(prev => prev.size > 0 ? new Set() : new Set(['all']));
+    } else if (key.ctrl && input === 't') {
+      setTasksPanelVisible(prev => !prev);
+    }
+  });
+
+  const processMessage = useCallback(
+    async (input: string) => {
+      // Handle slash commands
+      if (isCommand(input)) {
+        const cmdContext: CommandContext = {
+          session,
+          authClient,
+          workingDirectory,
+          currentModel,
+          onModelChange: setCurrentModel,
+          onClear: () => {
+            // Clear terminal
+            process.stdout.write('\x1b[2J\x1b[H');
+            setBannerShown(false);
+          },
+          onExit: () => exit(),
+        };
+
+        const result = await executeCommand(input, cmdContext);
+        if (result.handled && result.output) {
+          console.log(result.output);
+        }
+        return;
+      }
+
+      // Print user message
+      console.log(`\n\x1b[1;36m❯\x1b[0m ${input}\n`);
+
+      setState('thinking');
+      setStreamingContent('');
+      setStreamingTools([]);
+      setError(null);
+      setThinkingStartTime(Date.now());
+
+      try {
+        let fullResponse = '';
+        let hasStartedStreaming = false;
+
+        for await (const chunk of session.chat(input)) {
+          if (!hasStartedStreaming && chunk.trim()) {
+            setState('streaming');
+            hasStartedStreaming = true;
+          }
+
+          fullResponse += chunk;
+          setStreamingContent(fullResponse);
+
+          // Parse tool executions as they stream
+          const toolExecs = parseToolExecution(fullResponse);
+          setStreamingTools(toolExecs);
+        }
+
+        // Print final response directly to stdout (not Ink)
+        const finalTools = parseToolExecution(fullResponse);
+        const cleanText = stripToolMarkers(fullResponse);
+
+        // Print to terminal
+        if (cleanText) {
+          console.log(`\n${cleanText}\n`);
+        }
+
+        // Parse tasks
+        const newTasks = parseTasks(fullResponse);
+        if (newTasks.length > 0) {
+          setTasks(prev => {
+            const existing = new Set(prev.map(t => t.content));
+            const toAdd = newTasks.filter(t => !existing.has(t.content));
+            return [...prev, ...toAdd];
+          });
+        }
+
+        setStreamingContent('');
+        setStreamingTools([]);
+        setState('idle');
+        setThinkingStartTime(null);
+
+        // Update token count
+        try {
+          const stats = session.getContextStats();
+          if (stats.totalTokens > 0) {
+            setTokenCount(stats.totalTokens);
+          }
+        } catch {
+          // Ignore
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setState('idle');
+        setThinkingStartTime(null);
+      }
+    },
+    [session, state, exit, authClient, workingDirectory, currentModel]
+  );
+
+  // Process initial prompt
+  useEffect(() => {
+    if (initialPrompt) {
+      processMessage(initialPrompt);
+    }
+  }, []);
+
+  // Show banner once
+  useEffect(() => {
+    if (!bannerShown) {
+      setBannerShown(true);
+    }
+  }, []);
+
+  // HITL handlers
+  const handleHITLConfirm = useCallback(() => {
+    if (pendingHITL) {
+      pendingHITL.resolve(true);
+      setPendingHITL(null);
+    }
+  }, [pendingHITL]);
+
+  const handleHITLDeny = useCallback(() => {
+    if (pendingHITL) {
+      pendingHITL.resolve(false);
+      setPendingHITL(null);
+    }
+  }, [pendingHITL]);
+
+  const handleHITLAlwaysAllow = useCallback(() => {
+    if (pendingHITL) {
+      pendingHITL.resolve(true);
+      setPendingHITL(null);
+    }
+  }, [pendingHITL]);
+
+  const isExpanded = expandedItems.has('all');
+
+  return (
+    <Box flexDirection="column">
+      {/* Banner - show once */}
+      {bannerShown && (
+        <Banner
+          version={getVersion()}
+          model={currentModel}
+          workingDir={workingDirectory}
+          minimal={false}
+        />
+      )}
+
+      {/* Streaming content - ONLY show while streaming */}
+      {state === 'streaming' && (
+        <Box flexDirection="column">
+          {streamingTools.map(tool => (
+            <ToolExecutionDisplay
+              key={tool.id}
+              execution={tool}
+              collapsed={!isExpanded}
+            />
+          ))}
+
+          {streamingContent && (
+            <Message role="assistant" content={stripToolMarkers(streamingContent)} streaming />
+          )}
+        </Box>
+      )}
+
+      {/* Thinking spinner with timer */}
+      {state === 'thinking' && !pendingHITL && (
+        <LiveThinkingDisplay
+          isThinking={true}
+          startTime={thinkingStartTime || undefined}
+          collapsed={true}
+        />
+      )}
+
+      {/* Task list */}
+      {tasks.length > 0 && tasksPanelVisible && (
+        <Box flexDirection="column" marginY={1}>
+          <Box>
+            <Text color={colors.secondary}>· </Text>
+            <Text color={colors.text}>Tasks </Text>
+            <Text color={colors.textMuted}>(ctrl+t to toggle)</Text>
+          </Box>
+          <TaskList tasks={tasks} title="" />
+        </Box>
+      )}
+
+      {/* HITL confirmation */}
+      {pendingHITL && (
+        <ConfirmationDialog
+          action={pendingHITL.action}
+          onConfirm={handleHITLConfirm}
+          onDeny={handleHITLDeny}
+          onAlwaysAllow={handleHITLAlwaysAllow}
+        />
+      )}
+
+      {/* Error */}
+      {error && (
+        <Box marginY={1}>
+          <Text color={colors.error}>Error: {error}</Text>
+        </Box>
+      )}
+
+      {/* Input - always at bottom */}
+      {state === 'idle' && !pendingHITL && (
+        <ResizableInput
+          onSubmit={processMessage}
+          placeholder="Ask me anything... (Shift+Enter for newline)"
+          borderColor={colors.primary}
+        />
+      )}
+
+      {/* Status bar */}
+      <StatusBar model={currentModel} workingDir={workingDirectory} tokenCount={tokenCount} />
+    </Box>
+  );
+};
+
+export default App;

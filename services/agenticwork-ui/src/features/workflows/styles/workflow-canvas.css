@@ -1,0 +1,407 @@
+/**
+ * Workflow Canvas Styles
+ * Professional ReactFlow customizations inspired by Flowise
+ */
+
+/* ==================== Node Handles (Enhanced Flowise-style) ==================== */
+.workflow-handle {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: crosshair;
+  position: relative;
+}
+
+.workflow-handle:hover {
+  transform: scale(1.4);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.6) !important;
+}
+
+.workflow-handle::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.workflow-handle:hover::before {
+  opacity: 1;
+  animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 0.3;
+  }
+}
+
+.workflow-handle.react-flow__handle-connecting {
+  background-color: #fbbf24 !important;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.8), 0 0 40px rgba(251, 191, 36, 0.4) !important;
+  animation: connecting-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes connecting-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.workflow-handle.react-flow__handle-valid {
+  background-color: #10b981 !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.8), 0 0 40px rgba(16, 185, 129, 0.4) !important;
+  animation: valid-pulse 0.6s ease-in-out;
+}
+
+/* ==================== Edge Delete Button ==================== */
+.workflow-edge-button-wrapper {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.react-flow__edge:hover + .workflow-edge-button-wrapper,
+.workflow-edge-button-wrapper:hover {
+  opacity: 1;
+}
+
+.workflow-edge-delete-button {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #374151;
+  border: 2px solid #4b5563;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #9ca3af;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.workflow-edge-delete-button:hover {
+  background: #ef4444;
+  border-color: #dc2626;
+  color: white;
+  transform: scale(1.15);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+}
+
+/* ==================== Edge Styles (Enhanced Professional) ==================== */
+.react-flow__edge-path {
+  stroke: #6366f1;
+  stroke-width: 2.5px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 2px 4px rgba(99, 102, 241, 0.3));
+}
+
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 8 4;
+  animation: dashdraw 1s linear infinite;
+  stroke-width: 3px;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #818cf8;
+  stroke-width: 3.5px;
+  filter: drop-shadow(0 0 8px rgba(129, 140, 248, 0.6)) drop-shadow(0 0 16px rgba(129, 140, 248, 0.3));
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #a5b4fc;
+  stroke-width: 3.5px;
+  filter: drop-shadow(0 0 8px rgba(165, 180, 252, 0.6));
+}
+
+@keyframes dashdraw {
+  from {
+    stroke-dashoffset: 12;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Gradient edge animation on hover */
+.react-flow__edge:hover .react-flow__edge-path {
+  animation: edge-glow 2s ease-in-out infinite;
+}
+
+@keyframes edge-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(165, 180, 252, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(165, 180, 252, 0.8));
+  }
+}
+
+/* ==================== Node Animations (Enhanced) ==================== */
+.workflow-node-wrapper {
+  animation: nodeAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes nodeAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.react-flow__node {
+  cursor: grab;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.react-flow__node:hover {
+  filter: brightness(1.05);
+}
+
+.react-flow__node.dragging {
+  cursor: grabbing;
+  opacity: 0.7;
+  transform: rotate(2deg);
+  filter: drop-shadow(0 20px 25px rgba(0, 0, 0, 0.4));
+}
+
+.react-flow__node.selected {
+  z-index: 10;
+  animation: node-select 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes node-select {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ==================== Controls Styling (Dark Mode) ==================== */
+.react-flow__controls {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+.react-flow__controls-button {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: #f3f4f6;
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls-button:hover {
+  background-color: #4b5563;
+  border-color: #6b7280;
+}
+
+.react-flow__controls-button svg {
+  fill: #f3f4f6;
+}
+
+/* ==================== MiniMap Styling ==================== */
+.react-flow__minimap {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(10, 10, 15, 0.7);
+}
+
+.react-flow__minimap-node {
+  fill: #4b5563;
+  stroke: #6b7280;
+}
+
+/* ==================== Background Pattern ==================== */
+.react-flow__background {
+  background-color: #0a0a0f;
+}
+
+.react-flow__background pattern circle {
+  fill: #1f1f2e;
+}
+
+/* ==================== Selection Box ==================== */
+.react-flow__selection {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid #6366f1;
+}
+
+/* ==================== Pane ==================== */
+.react-flow__pane {
+  cursor: default;
+}
+
+.react-flow__pane.dragging {
+  cursor: grabbing;
+}
+
+/* ==================== Attribution ==================== */
+.react-flow__attribution {
+  opacity: 0.5;
+  font-size: 10px;
+}
+
+.react-flow__attribution:hover {
+  opacity: 1;
+}
+
+/* ==================== Smooth Performance ==================== */
+.react-flow__renderer {
+  will-change: transform;
+}
+
+.react-flow__node {
+  will-change: transform;
+}
+
+.react-flow__edge {
+  will-change: d;
+}
+
+/* ==================== Node Palette Animations (Professional) ==================== */
+.workflow-palette-item {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.workflow-palette-item::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+  pointer-events: none;
+}
+
+.workflow-palette-item:hover::after {
+  left: 100%;
+}
+
+.workflow-palette-item:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.workflow-palette-item:active {
+  transform: translateY(-2px) scale(0.98);
+  transition: all 0.1s ease;
+}
+
+.workflow-palette-item:active::after {
+  left: -100%;
+}
+
+/* ==================== Scrollbar Styling ==================== */
+.workflow-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.workflow-scrollbar::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+.workflow-scrollbar::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+.workflow-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* ==================== Professional Shadows ==================== */
+.workflow-shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.workflow-shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.workflow-shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.workflow-shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+.workflow-shadow-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+}
+
+/* ==================== Focus States ==================== */
+.workflow-focus-ring:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.workflow-focus-ring:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ==================== Loading States ==================== */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.workflow-loading {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.workflow-spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* ==================== Transitions ==================== */
+.workflow-transition {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.workflow-transition-slow {
+  transition-duration: 300ms;
+}
+
+.workflow-transition-fast {
+  transition-duration: 75ms;
+}

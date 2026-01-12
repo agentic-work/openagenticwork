@@ -1,0 +1,411 @@
+# OpenAgenticWork - Minimal Docker Compose
+# https://github.com/agentic-work/openagenticwork
+#
+# Quick start:
+#   cp .env.example .env
+#   # Edit .env with your LLM provider credentials
+#   docker compose up -d
+#
+# Services:
+#   - agenticwork-api (port 8000) - Backend API
+#   - agenticwork-ui (port 3000) - Frontend UI
+#   - agenticwork-mcp-proxy (port 8080) - MCP tool aggregator
+#   - agenticode-manager (internal) - Code execution sandbox
+#   - postgres (port 5432) - Database
+#   - redis (port 6379) - Cache
+#   - milvus (port 19530) - Vector database
+#   - minio (port 9000/9001) - Object storage
+
+x-default-env: &default-env
+  env_file: .env
+
+services:
+
+  # ===========================================
+  # INFRASTRUCTURE
+  # ===========================================
+
+  postgres:
+    <<: *default-env
+    image: postgres:15
+    container_name: openagenticwork-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agenticwork}
+      POSTGRES_USER: ${POSTGRES_USER:-agenticwork}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - agenticwork-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agenticwork} -d ${POSTGRES_DB:-agenticwork}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    ports:
+      - "5432:5432"
+
+  redis:
+    <<: *default-env
+    image: redis/redis-stack:7.2.0-v9
+    container_name: openagenticwork-redis
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_ARGS=--save 60 1 --loglevel warning --maxmemory 1gb --maxmemory-policy allkeys-lru
+    networks:
+      - agenticwork-network
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Milvus dependencies
+  milvus-etcd:
+    container_name: openagenticwork-milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.5
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - milvus_etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - agenticwork-network
+
+  milvus-minio:
+    container_name: openagenticwork-milvus-minio
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - milvus_minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - agenticwork-network
+
+  # Milvus Vector Database
+  milvus:
+    <<: *default-env
+    image: milvusdb/milvus:v2.5.0
+    container_name: openagenticwork-milvus
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      - milvus-etcd
+      - milvus-minio
+    networks:
+      - agenticwork-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+
+  # MinIO for file storage
+  minio:
+    <<: *default-env
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: openagenticwork-minio
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    command: minio server /data --console-address ":9001"
+    networks:
+      - agenticwork-network
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ===========================================
+  # APPLICATION SERVICES
+  # ===========================================
+
+  agenticwork-api:
+    <<: *default-env
+    build:
+      context: .
+      dockerfile: ./services/agenticwork-api/Dockerfile
+      args:
+        SRC_PATH: services/agenticwork-api
+    container_name: openagenticwork-api
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PORT: 8000
+
+      # Database
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-agenticwork}
+      POSTGRES_USER: ${POSTGRES_USER:-agenticwork}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agenticwork}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-agenticwork}
+
+      # Redis
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # Milvus
+      MILVUS_HOST: milvus
+      MILVUS_PORT: 19530
+      MILVUS_ADDRESS: milvus:19530
+
+      # MCP Proxy
+      MCP_PROXY_URL: http://agenticwork-mcp-proxy:8080
+
+      # AgentiCode Manager
+      CODE_MANAGER_URL: http://agenticode-manager:3050
+      CODE_MANAGER_INTERNAL_KEY: ${CODE_MANAGER_INTERNAL_KEY:-change-this-key}
+
+      # Security
+      API_SECRET_KEY: ${API_SECRET_KEY:-change-this-key}
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret-min-32-chars}
+      FRONTEND_SECRET: ${FRONTEND_SECRET:-change-this-key}
+      SIGNING_SECRET: ${SIGNING_SECRET:-change-this-signing-secret}
+
+      # Authentication
+      AUTH_MODE: ${AUTH_MODE:-development}
+      ADMIN_REQUIRE_PASSWORD_RESET: "false"
+
+      # MinIO
+      BLOB_STORAGE_TYPE: minio
+      BLOB_STORAGE_BUCKET: agenticwork-uploads
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_USE_SSL: "false"
+
+      # Embeddings - disabled by default for open source
+      EMBEDDING_ENABLED: "false"
+      EMBEDDING_PROVIDER: "none"
+      ENABLE_VECTOR_SEARCH: "false"
+      ENABLE_TOOL_SEMANTIC_CACHE: "false"
+
+      # LLM Providers - Configure at least one via Admin Portal or env vars
+      # See .env.example for provider configuration options
+
+    networks:
+      - agenticwork-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  agenticwork-ui:
+    <<: *default-env
+    build:
+      context: .
+      dockerfile: ./services/agenticwork-ui/Dockerfile
+      args:
+        SRC_PATH: services/agenticwork-ui
+    container_name: openagenticwork-ui
+    ports:
+      - "3000:80"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_HOST: agenticwork-api
+      API_PORT: 8000
+      VITE_API_BASE_URL: http://localhost:8000/api
+      VITE_WS_URL: ws://localhost:8000
+      # Feature flags
+      VITE_FEATURE_FLOWISE: "false"
+      VITE_FEATURE_AGENTICODE: "true"
+      VITE_FEATURE_MCP: "true"
+      VITE_FEATURE_SLIDER: "true"
+      # Login options
+      LOCAL_LOGIN_ENABLED: "true"
+      MICROSOFT_LOGIN_ENABLED: ${MICROSOFT_LOGIN_ENABLED:-false}
+      GOOGLE_LOGIN_ENABLED: ${GOOGLE_LOGIN_ENABLED:-false}
+      # Disabled services - point to API as fallback
+      FLOWISE_HOST: agenticwork-api
+      FLOWISE_PORT: 8000
+      ATTU_HOST: agenticwork-api
+      ATTU_PORT: 8000
+      REDIS_COMMANDER_HOST: agenticwork-api
+      REDIS_COMMANDER_PORT: 8000
+      AWCODE_MANAGER_HOST: agenticode-manager
+      AWCODE_MANAGER_PORT: 3050
+      CODE_SERVER_HOST: agenticode-manager
+      CODE_SERVER_PORT: 3050
+    networks:
+      - agenticwork-network
+    depends_on:
+      - agenticwork-api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/ui-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  agenticwork-mcp-proxy:
+    <<: *default-env
+    build:
+      context: .
+      dockerfile: ./services/agenticwork-mcp-proxy/Dockerfile
+    container_name: openagenticwork-mcp-proxy
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      LOG_LEVEL: INFO
+      # Disable Azure AD auth for open source version
+      ENABLE_AUTH: "false"
+
+      # Database and infrastructure
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agenticwork}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-agenticwork}
+      REDIS_URL: redis://redis:6379
+      MILVUS_HOST: milvus
+      MILVUS_PORT: 19530
+
+      # API connection
+      API_BASE_URL: http://agenticwork-api:8000
+      AGENTICWORK_API_URL: http://agenticwork-api:8000
+
+      # Security
+      JWT_SECRET: ${JWT_SECRET:-change-this-jwt-secret-min-32-chars}
+      SIGNING_SECRET: ${SIGNING_SECRET:-change-this-signing-secret}
+      API_INTERNAL_KEY: ${API_INTERNAL_KEY:-internal-api-key}
+
+      # AgentiCode
+      AGENTICODE_MANAGER_URL: http://agenticode-manager:3050
+      CODE_MANAGER_INTERNAL_KEY: ${CODE_MANAGER_INTERNAL_KEY:-change-this-key}
+
+      # MCP Server Enable/Disable - minimal set enabled
+      ADMIN_MCP_DISABLED: "false"
+      FETCH_MCP_DISABLED: "false"
+      # Disabled MCPs
+      FLOWISE_MCP_DISABLED: "true"
+      AWP_AWS_MCP_DISABLED: "true"
+      AWP_GCP_MCP_DISABLED: "true"
+      AZURE_COST_MCP_DISABLED: "true"
+      VMWARE_MCP_DISABLED: "true"
+      PROMETHEUS_MCP_DISABLED: "true"
+
+    volumes:
+      - ./services/mcps:/app/mcp-servers:ro
+    networks:
+      - agenticwork-network
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+      agenticode-manager:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  agenticode-manager:
+    <<: *default-env
+    build:
+      context: .
+      dockerfile: services/agenticode-manager/Dockerfile
+    container_name: openagenticwork-agenticode-manager
+    restart: unless-stopped
+    expose:
+      - "3050"
+      - "3100-3199"
+    volumes:
+      - code_workspaces:/workspaces
+    environment:
+      - PORT=3050
+      - AGENTICWORK_API_ENDPOINT=http://agenticwork-api:8000
+      - WORKSPACES_PATH=/workspaces
+      - INTERNAL_API_KEY=${CODE_MANAGER_INTERNAL_KEY:-change-this-key}
+      # Storage
+      - STORAGE_PROVIDER=minio
+      - STORAGE_BUCKET=agenticwork-workspaces
+      - STORAGE_ENDPOINT=http://minio:9000
+      - STORAGE_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - STORAGE_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+    networks:
+      agenticwork-network:
+        aliases:
+          - agenticode-manager
+    depends_on:
+      - minio
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3050/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  redis_data:
+  milvus_data:
+  milvus_etcd_data:
+  milvus_minio_data:
+  minio_data:
+  code_workspaces:
+
+networks:
+  agenticwork-network:
+    driver: bridge

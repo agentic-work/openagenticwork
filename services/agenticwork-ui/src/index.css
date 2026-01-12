@@ -1,0 +1,3018 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   AGENTICWORK DESIGN SYSTEM - macOS-Inspired, Human-Designed
+   ========================================================================== */
+
+@layer base {
+  body {
+    /* Primary: Inter with optical sizing, fallback to SF Pro */
+    font-family: 'Inter var', 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-weight: 400;
+    letter-spacing: -0.011em;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11'; /* Inter stylistic alternates */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter var', 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  button, .button {
+    font-family: 'Inter var', 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+}
+
+/* Hide scrollbar but keep scroll functionality (like Gemini/Claude) */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
+/* CSS Variables for Theme Support */
+:root {
+  /* ==========================================================================
+     BRAND COLORS - Distinctive, NOT generic AI purple-blue
+     Apple Blue (#0A84FF) is our primary - confident, professional, unique
+     ========================================================================== */
+  --user-accent-primary: #0A84FF;    /* Apple Blue - NOT purple */
+  --user-accent-secondary: #30D158;  /* Apple Green - success states */
+  --user-accent-color: #0A84FF;
+
+  /* Legacy lava colors - now using brand tints */
+  --lava-color-1: #0A84FF;
+  --lava-color-2: #5AC8FA;           /* Lighter blue tint */
+
+  /* ==========================================================================
+     TYPOGRAPHY - JetBrains Mono for code, Inter for UI
+     ========================================================================== */
+  --font-code: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  --font-code-size: 13px;
+  --font-code-line-height: 1.5;
+
+  /* Admin Portal Typography */
+  --font-admin: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  --font-admin-size: 13px;
+  --font-admin-line-height: 1.5;
+
+  /* ==========================================================================
+     SEMANTIC COLORS
+     ========================================================================== */
+  --color-primary: var(--user-accent-primary, #0A84FF);
+  --color-secondary: #64D2FF;        /* Cyan - secondary actions */
+  --color-accent: #FF9F0A;           /* Apple Orange - highlights */
+  --color-success: #30D158;          /* Apple Green */
+  --color-warning: #FF9F0A;          /* Apple Orange */
+  --color-error: #FF453A;            /* Apple Red */
+  --color-vscode: #007ACC;           /* VS Code Blue */
+
+  /* ==========================================================================
+     SURFACES - Solid, confident, NO glassmorphism by default
+     ========================================================================== */
+  --color-background: #111114;       /* Soft dark - easier on eyes than true black */
+  --color-surface: #1C1C1E;          /* Apple dark surface */
+  --color-surfaceSecondary: #2C2C2E; /* Elevated surface */
+  --color-surfaceTertiary: #3A3A3C;  /* Highest elevation */
+  --color-surfaceHover: #3A3A3C;
+
+  /* Text colors */
+  --color-text: #FFFFFF;
+  --color-textSecondary: #EBEBF5;    /* 60% opacity white equivalent */
+  --color-textMuted: #8E8E93;        /* Apple gray */
+
+  /* Borders - subtle, not glassy */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-borderHover: rgba(255, 255, 255, 0.15);
+
+  /* Shadows - subtle depth, NO colored glows */
+  --color-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --color-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --color-blur: blur(20px);          /* Only for modals */
+
+  /* ==========================================================================
+     GRADIENTS - Minimal use, single-hue only
+     ========================================================================== */
+  --color-gradientPrimary: var(--color-primary);  /* NO gradient - solid color */
+  --color-gradientSecondary: var(--color-secondary);
+  --color-gradientDark: linear-gradient(180deg, #000000 0%, #1C1C1E 100%);
+
+  /* Status colors */
+  --color-statusHealthy: #30D158;
+  --color-statusWarning: #FF9F0A;
+  --color-statusError: #FF453A;
+  --color-statusUnknown: #8E8E93;
+
+  /* ==========================================================================
+     TEXT HIERARCHY - macOS-style
+     ========================================================================== */
+  --text-primary: #FFFFFF;
+  --text-secondary: #EBEBF5;    /* 60% white */
+  --text-tertiary: #EBEBF599;   /* 40% white */
+  --text-muted: #8E8E93;        /* Apple gray */
+  --text-subtle: #636366;       /* Darker gray */
+
+  /* ==========================================================================
+     SEMANTIC ACCENT COLORS - Apple color palette
+     ========================================================================== */
+  --accent-info: #0A84FF;       /* Apple Blue */
+  --accent-success: #30D158;    /* Apple Green */
+  --accent-warning: #FF9F0A;    /* Apple Orange */
+  --accent-error: #FF453A;      /* Apple Red */
+  --accent-code: #8E8E93;       /* Apple Gray */
+  --accent-link: #64D2FF;       /* Apple Cyan */
+
+  /* Code styling */
+  --code-bg: rgba(142, 142, 147, 0.12);
+  --code-border: rgba(142, 142, 147, 0.2);
+  --code-text: #EBEBF5;
+
+  /* Callout colors - using Apple palette */
+  --callout-info-bg: rgba(10, 132, 255, 0.1);
+  --callout-info-border: rgba(10, 132, 255, 0.3);
+  --callout-success-bg: rgba(48, 209, 88, 0.1);
+  --callout-success-border: rgba(48, 209, 88, 0.3);
+  --callout-warning-bg: rgba(255, 159, 10, 0.1);
+  --callout-warning-border: rgba(255, 159, 10, 0.3);
+  --callout-error-bg: rgba(255, 69, 58, 0.1);
+  --callout-error-border: rgba(255, 69, 58, 0.3);
+
+  /* ==========================================================================
+     MOTION TOKENS - Snappy, not sluggish
+     Replace 300ms/ease-in-out everywhere with these
+     ========================================================================== */
+  --duration-instant: 50ms;     /* Micro-feedback */
+  --duration-fast: 100ms;       /* Button states, toggles */
+  --duration-normal: 150ms;     /* Most UI transitions */
+  --duration-slow: 250ms;       /* Panel slides, modals */
+  --duration-slower: 400ms;     /* Page transitions */
+
+  /* Easing - ease-out for snappy UI, not ease-in-out */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ==========================================================================
+     SPACING SCALE - Consistent rhythm
+     ========================================================================== */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ==========================================================================
+     RADIUS - Only two sizes needed
+     ========================================================================== */
+  --radius-sm: 6px;             /* Buttons, inputs, small cards */
+  --radius-md: 12px;            /* Cards, modals */
+  --radius-full: 9999px;        /* Pills, avatars */
+
+  /* ==========================================================================
+     CODE MODE DEFAULTS (dark mode - used outside .code-mode context)
+     ========================================================================== */
+  --cm-bg: #0d1117;
+  --cm-bg-secondary: #161b22;
+  --cm-bg-tertiary: #21262d;
+  --cm-border: #30363d;
+  --cm-text: #c9d1d9;
+  --cm-text-secondary: #8b949e;
+  --cm-text-muted: #6e7681;
+  --cm-accent: var(--user-accent-primary, #58a6ff);
+  --cm-success: #3fb950;
+  --cm-warning: #d29922;
+  --cm-error: #f85149;
+  --cm-info: #58a6ff;
+}
+
+/* ==========================================================================
+   LIGHT THEME - Apple-style light mode
+   ========================================================================== */
+[data-theme="light"] {
+  /* Surfaces - macOS light style */
+  --color-background: #F8F8FA;        /* Soft off-white - easier on eyes than pure white */
+  --color-surface: #F2F2F7;           /* Apple light gray */
+  --color-surfaceSecondary: #FFFFFF;
+  --color-surfaceTertiary: #F2F2F7;
+  --color-surfaceHover: #E5E5EA;
+
+  /* Text - macOS dark text on light */
+  --color-text: #000000;
+  --color-textSecondary: #3C3C4399;   /* 60% black */
+  --color-textMuted: #8E8E93;
+
+  --text-primary: #000000;
+  --text-secondary: #3C3C43;
+  --text-tertiary: #3C3C4399;
+  --text-muted: #8E8E93;
+  --text-subtle: #AEAEB2;
+
+  /* Borders */
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-borderHover: rgba(0, 0, 0, 0.15);
+
+  /* Shadows */
+  --color-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --color-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Code - using Apple light palette */
+  --code-bg: rgba(142, 142, 147, 0.08);
+  --code-border: rgba(142, 142, 147, 0.15);
+  --code-text: #000000;
+
+  /* Callouts - Apple light colors */
+  --callout-info-bg: rgba(10, 132, 255, 0.08);
+  --callout-info-border: rgba(10, 132, 255, 0.3);
+  --callout-success-bg: rgba(48, 209, 88, 0.08);
+  --callout-success-border: rgba(48, 209, 88, 0.3);
+  --callout-warning-bg: rgba(255, 159, 10, 0.08);
+  --callout-warning-border: rgba(255, 159, 10, 0.3);
+  --callout-error-bg: rgba(255, 69, 58, 0.08);
+  --callout-error-border: rgba(255, 69, 58, 0.3);
+
+  /* Light theme accent colors (darker for visibility) */
+  --accent-info: #007AFF;
+  --accent-success: #28CD41;
+  --accent-warning: #FF9500;
+  --accent-error: #FF3B30;
+
+  /* Code Mode fallbacks for light theme (used outside .code-mode context) */
+  --cm-bg: #ffffff;
+  --cm-bg-secondary: #f6f8fa;
+  --cm-bg-tertiary: #f0f3f6;
+  --cm-border: #d0d7de;
+  --cm-text: #1f2328;
+  --cm-text-secondary: #57606a;
+  --cm-text-muted: #8c959f;
+  --cm-accent: var(--color-primary, #0969da);
+  --cm-success: #1a7f37;
+  --cm-warning: #9a6700;
+  --cm-error: #d1242f;
+  --cm-info: #0969da;
+}
+
+/* Theme body background overrides */
+body.light-theme {
+  background-color: #FFFFFF;
+}
+
+body.dark-theme {
+  background-color: #000000;
+}
+
+/* Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  /* Typography set in @layer base above - uses Inter/SF Pro */
+  overflow-x: hidden;
+  background-color: #0D0D12; /* Solid dark background */
+}
+
+/* Color definitions for glow effects */
+:root {
+  --purple-glow: #8B5CF6;
+  --blue-glow: #3B82F6;
+  --pink-glow: #EC4899;
+}
+
+/* Glassmorphic Utilities */
+@layer utilities {
+  .glass {
+    backdrop-filter: var(--color-blur) saturate(180%);
+    -webkit-backdrop-filter: var(--color-blur) saturate(180%);
+  }
+
+  .glass-border {
+    border: 1px solid var(--color-border);
+  }
+
+  .glass-shadow {
+    box-shadow: var(--color-shadow);
+  }
+
+  .gradient-primary {
+    background: var(--color-gradientPrimary);
+  }
+
+  .gradient-secondary {
+    background: var(--color-gradientSecondary);
+  }
+
+  /* Responsive chat container utilities */
+  .chat-container-responsive {
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .chat-content-max-width {
+    max-width: min(1400px, 90vw);
+    margin: 0 auto;
+  }
+
+  /* GPU acceleration for smooth scrolling */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* ===== THEME-AWARE COLOR UTILITIES ===== */
+  /* Primary color backgrounds with opacity variants (using color-mix) */
+  .bg-primary-5 { background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
+  .bg-primary-8 { background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+  .bg-primary-10 { background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
+  .bg-primary-15 { background: color-mix(in srgb, var(--color-primary) 15%, transparent); }
+  .bg-primary-20 { background: color-mix(in srgb, var(--color-primary) 20%, transparent); }
+  .bg-primary-30 { background: color-mix(in srgb, var(--color-primary) 30%, transparent); }
+
+  /* Secondary color backgrounds */
+  .bg-secondary-5 { background: color-mix(in srgb, var(--color-secondary) 5%, transparent); }
+  .bg-secondary-10 { background: color-mix(in srgb, var(--color-secondary) 10%, transparent); }
+  .bg-secondary-20 { background: color-mix(in srgb, var(--color-secondary) 20%, transparent); }
+
+  /* Border color utilities */
+  .border-primary-10 { border-color: color-mix(in srgb, var(--color-primary) 10%, transparent); }
+  .border-primary-15 { border-color: color-mix(in srgb, var(--color-primary) 15%, transparent); }
+  .border-primary-20 { border-color: color-mix(in srgb, var(--color-primary) 20%, transparent); }
+  .border-primary-30 { border-color: color-mix(in srgb, var(--color-primary) 30%, transparent); }
+  .border-primary-50 { border-color: color-mix(in srgb, var(--color-primary) 50%, transparent); }
+
+  /* Text color utilities with opacity */
+  .text-primary-70 { color: color-mix(in srgb, var(--color-primary) 70%, transparent); }
+  .text-primary-80 { color: color-mix(in srgb, var(--color-primary) 80%, transparent); }
+  .text-primary-90 { color: color-mix(in srgb, var(--color-primary) 90%, transparent); }
+
+  /* Gradient backgrounds - theme aware */
+  .bg-gradient-primary-subtle {
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary) 8%, transparent) 0%,
+      color-mix(in srgb, var(--color-secondary) 5%, transparent) 100%
+    );
+  }
+
+  .bg-gradient-thinking {
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary) 10%, transparent) 0%,
+      color-mix(in srgb, var(--color-secondary) 6%, transparent) 100%
+    );
+    border-left: 3px solid color-mix(in srgb, var(--color-primary) 50%, transparent);
+  }
+
+  /* Hover states - no JS needed */
+  .hover\:bg-primary-10:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+
+  .hover\:bg-primary-20:hover {
+    background: color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+
+  /* Thinking box specific styles */
+  .thinking-box-gradient {
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-primary) 8%, transparent) 0%,
+      color-mix(in srgb, var(--color-secondary) 5%, transparent) 100%
+    );
+    border-color: color-mix(in srgb, var(--color-primary) 20%, transparent);
+    border-left-width: 3px;
+    border-left-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
+  }
+
+  .thinking-badge {
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    color: var(--color-primaryLight);
+  }
+
+  .thinking-label {
+    color: var(--color-primaryLight);
+    opacity: 0.7;
+  }
+
+  .thinking-cursor {
+    background: color-mix(in srgb, var(--color-primary) 80%, transparent);
+  }
+
+  .thinking-glow {
+    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-primary) 60%, transparent));
+  }
+
+  /* Scrollbar colors for thinking box */
+  .thinking-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-primary) 30%, transparent) transparent;
+  }
+
+  .thinking-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .thinking-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .thinking-scrollbar::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-primary) 30%, transparent);
+    border-radius: 3px;
+  }
+}
+
+/* Glass Card Component - using CSS variables for theme support */
+.glass-card {
+  background: var(--color-surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--color-shadow);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: var(--color-surfaceHover);
+  border-color: var(--color-borderHover);
+  box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* Glass Button - using CSS variables for theme support */
+.glass-button {
+  background: var(--color-surface);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 0.75rem 1.5rem;
+  color: var(--color-text);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.glass-button:hover {
+  background: var(--color-surfaceHover);
+  border-color: var(--color-borderHover);
+  transform: translateY(-1px);
+}
+
+/* Shadow glow effect */
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+}
+
+/* Loading shimmer - theme aware */
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 0%,
+    var(--color-surfaceHover) 50%,
+    var(--color-surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Logo underline shimmer animation */
+@keyframes logo-shimmer {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 5px;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-secondary));
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Status Indicators */
+.status-healthy {
+  color: var(--color-statusHealthy);
+}
+
+.status-warning {
+  color: var(--color-statusWarning);
+}
+
+.status-error {
+  color: var(--color-statusError);
+}
+
+.status-unknown {
+  color: var(--color-statusUnknown);
+}
+
+/* Loading Animation */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* VS Code Button Glow Animation - plays once on mount */
+@keyframes vscode-glow {
+  0% {
+    box-shadow: 0 0 0 0 var(--color-vscode), 0 0 12px 4px color-mix(in srgb, var(--color-vscode) 60%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 0 var(--color-vscode), 0 0 20px 8px color-mix(in srgb, var(--color-vscode) 80%, transparent);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+.vscode-glow-animate {
+  animation: vscode-glow 1s ease-out forwards;
+}
+
+/* VS Code pill button styles */
+.vscode-pill {
+  background-color: transparent;
+  border-color: color-mix(in srgb, var(--color-vscode) 50%, transparent);
+  color: var(--color-vscode);
+}
+
+.vscode-pill:hover {
+  background-color: color-mix(in srgb, var(--color-vscode) 15%, transparent);
+  border-color: var(--color-vscode);
+}
+
+.vscode-pill.active {
+  background-color: var(--color-vscode);
+  border-color: var(--color-vscode);
+  color: white;
+}
+
+/* Smooth Transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Focus Styles */
+button:focus,
+a:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-primary), 0 0 0 4px rgba(124, 58, 237, 0.3);
+}
+
+/* Select and Option Theme Support */
+select {
+  background-color: var(--color-surfaceSecondary, var(--color-surface));
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+select option {
+  background-color: var(--color-surfaceSecondary, var(--color-surface));
+  color: var(--color-text);
+  padding: 0.5rem;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: var(--color-surfaceHover);
+  color: var(--color-text);
+}
+
+/* Input and Textarea placeholders */
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-textMuted);
+  opacity: 0.6;
+}
+
+/* Card Hover Effects */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 48px 0 rgba(124, 58, 237, 0.2);
+}
+
+/* Chart Styles */
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+.recharts-surface {
+  overflow: visible !important;
+}
+
+/* Animations */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* Slide up animation for menus */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out;
+}
+
+/* Thinking animation */
+@keyframes thinking-morph {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    filter: hue-rotate(0deg) brightness(1);
+  }
+  25% {
+    transform: scale(1.1) rotate(90deg);
+    filter: hue-rotate(45deg) brightness(1.2);
+  }
+  50% {
+    transform: scale(0.9) rotate(180deg);
+    filter: hue-rotate(90deg) brightness(0.9);
+  }
+  75% {
+    transform: scale(1.05) rotate(270deg);
+    filter: hue-rotate(135deg) brightness(1.1);
+  }
+}
+
+.thinking-animation {
+  animation: thinking-morph 4s ease-in-out infinite;
+}
+
+/* Animation delay utilities for loading dots */
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: var(--color-gradientPrimary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* WebGL Background */
+.webgl-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.webgl-background canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Gradient radial utility */
+.bg-gradient-radial {
+  background: radial-gradient(ellipse at center, var(--tw-gradient-stops));
+}
+
+/* Noise texture for glass grain effect */
+.bg-noise::before {
+  background-image:
+    repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,.03) 2px, rgba(255,255,255,.03) 4px),
+    repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(0,0,0,.03) 2px, rgba(0,0,0,.03) 4px);
+  background-size: 100px 100px;
+  background-position: 0 0, 0 0;
+  mix-blend-mode: overlay;
+}
+
+/* AGENTICWORKCODE EXACT GLASSMORPHIC IMPLEMENTATION */
+
+/* ========================================
+   Code Mode Terminal Typography
+   Inspired by zsh, powerlevel10k, nerd fonts
+   ======================================== */
+
+/* Terminal-style prose for code mode messages */
+.prose-terminal {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #e6edf3;
+  max-width: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'liga' 1, 'calt' 1;
+}
+
+.prose-terminal p {
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.prose-terminal p:last-child {
+  margin-bottom: 0;
+}
+
+/* Terminal-style headings - clean, no extra styling */
+.prose-terminal h1,
+.prose-terminal h2,
+.prose-terminal h3,
+.prose-terminal h4 {
+  font-weight: 600;
+  color: #58a6ff;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.prose-terminal h1 { font-size: 1.25rem; }
+.prose-terminal h2 { font-size: 1.125rem; }
+.prose-terminal h3 { font-size: 1rem; }
+.prose-terminal h4 { font-size: 0.9375rem; }
+
+/* Terminal-style inline code - no background, just different color */
+.prose-terminal code:not(pre code) {
+  font-family: inherit;
+  font-size: 0.9em;
+  color: #7ee787;
+  background: transparent;
+  padding: 0;
+  border: none;
+  font-weight: 500;
+}
+
+/* Terminal-style bold - cyan accent */
+.prose-terminal strong {
+  font-weight: 600;
+  color: #79c0ff;
+}
+
+/* Terminal-style lists - with nerd font style bullets */
+.prose-terminal ul {
+  list-style: none;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.prose-terminal ul > li {
+  position: relative;
+  padding-left: 0.25rem;
+  margin-bottom: 0.375rem;
+  line-height: 1.5;
+}
+
+.prose-terminal ul > li::before {
+  content: '❯';
+  position: absolute;
+  left: -1rem;
+  color: #8b5cf6;
+  font-size: 0.75rem;
+}
+
+.prose-terminal ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.prose-terminal ol > li {
+  margin-bottom: 0.375rem;
+  line-height: 1.5;
+}
+
+.prose-terminal ol > li::marker {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+/* Terminal-style links */
+.prose-terminal a {
+  color: #58a6ff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose-terminal a:hover {
+  color: #79c0ff;
+}
+
+/* Terminal-style blockquote */
+.prose-terminal blockquote {
+  border-left: 3px solid #8b5cf6;
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: #8b949e;
+  font-style: normal;
+}
+
+/* Chat user bubble - solid, warm feel */
+.user-bubble {
+  background: var(--user-accent-primary, #0A84FF) !important;
+  border: 1px solid var(--user-accent-primary, #0A84FF) !important;
+  border-radius: 16px;
+  color: white !important;
+  box-shadow: 0 1px 4px rgba(10, 132, 255, 0.12);
+  transition: all var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  position: relative;
+  z-index: 10;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+.user-bubble:hover {
+  box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Assistant message styling - plain text, no background */
+.prose {
+  color: var(--color-text);
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Sidebar glassmorphic styling matching AC-UI */
+.sidebar-glass {
+  position: relative;
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  background: rgba(255, 255, 255, 0.03);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Button glassmorphic styling matching AC-UI */
+.button-glass {
+  position: relative;
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--color-text);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.button-glass:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+/* Input glassmorphic styling matching AC-UI */
+.input-glass {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: var(--color-text);
+}
+
+.input-glass:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+  outline: none;
+}
+
+/* Chat input glassmorphic surface matching AC-UI */
+.glass-surface {
+  position: relative;
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  transition: all 0.3s ease;
+}
+
+.glass-surface:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+}
+
+/* Glass Modal - Slightly more opaque for better readability */
+.glass-modal {
+  position: relative;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  transition: all 0.3s ease;
+}
+
+/* Text color classes using AC-UI variables */
+.text-primary {
+  color: var(--color-text);
+  position: relative;
+  z-index: 10;
+}
+
+.text-secondary {
+  color: var(--color-textSecondary);
+  position: relative;
+  z-index: 10;
+}
+
+.text-muted {
+  color: var(--color-textMuted);
+  position: relative;
+  z-index: 10;
+}
+
+/* ========================================
+   Natural Typography - Professional but Human
+   Less clinical, more organic feel
+   ======================================== */
+
+.prose-sm-tight {
+  /* Natural system font stack - feels native, not clinical */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+  max-width: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Natural kerning and ligatures */
+  font-feature-settings: 'kern' 1, 'liga' 1;
+  font-kerning: auto;
+}
+
+/* Headings - Gemini-style: clean, no borders, white text */
+.prose-sm-tight h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-top: 1.5rem;
+  margin-bottom: 0.875rem;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  border: none;
+  padding-bottom: 0;
+}
+
+/* Light theme h1 */
+[data-theme="light"] .prose-sm-tight h1 {
+  color: #0f172a;
+}
+
+.prose-sm-tight h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-top: 1.375rem;
+  margin-bottom: 0.625rem;
+  letter-spacing: -0.015em;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Light theme h2 */
+[data-theme="light"] .prose-sm-tight h2 {
+  color: #0f172a;
+}
+
+/* First child heading has less top margin */
+.prose-sm-tight > h2:first-child {
+  margin-top: 0.5rem;
+}
+
+.prose-sm-tight h3 {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #E5E7EB;
+  margin-top: 1.125rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.45;
+}
+
+/* Light theme h3 */
+[data-theme="light"] .prose-sm-tight h3 {
+  color: #1e293b;
+}
+
+.prose-sm-tight h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #D1D5DB;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Light theme h4 */
+[data-theme="light"] .prose-sm-tight h4 {
+  color: #334155;
+}
+
+.prose-sm-tight h5,
+.prose-sm-tight h6 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #9CA3AF;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Light theme h5/h6 */
+[data-theme="light"] .prose-sm-tight h5,
+[data-theme="light"] .prose-sm-tight h6 {
+  color: #475569;
+}
+
+/* Paragraphs - Natural, relaxed spacing */
+.prose-sm-tight p {
+  margin-bottom: 0.875rem;
+  line-height: 1.6;
+}
+
+.prose-sm-tight p:last-child {
+  margin-bottom: 0;
+}
+
+/* First paragraph in a message - no extra top margin */
+.prose-sm-tight > p:first-child {
+  margin-top: 0;
+}
+
+/* Enhanced Inline Code - Gemini-style: subtle, no visible box */
+.prose-sm-tight code:not(pre code) {
+  font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 0.875em;
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  /* Subtle differentiation without ugly box */
+  opacity: 0.95;
+}
+
+/* Code Blocks */
+.prose-sm-tight pre {
+  margin: 1rem 0;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.prose-sm-tight pre code {
+  font-family: 'SF Mono', 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 0.875em;
+  line-height: 1.5;
+}
+
+/* Enhanced Links */
+.prose-sm-tight a {
+  color: var(--accent-link);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.15s ease;
+  font-weight: 500;
+}
+
+.prose-sm-tight a:hover {
+  border-bottom-color: var(--accent-link);
+  opacity: 0.8;
+}
+
+/* Bold & Emphasis - Gemini-style: clean white/dark text, no backgrounds */
+.prose-sm-tight strong {
+  font-weight: 600;
+  color: #FFFFFF;  /* Pure white for dark theme - matches Gemini */
+  letter-spacing: -0.01em;
+  background: none;
+  padding: 0;
+}
+
+/* Light theme override for bold */
+[data-theme="light"] .prose-sm-tight strong {
+  color: #0f172a;
+  font-weight: 600;
+  background: none;
+}
+
+.prose-sm-tight em {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* Lists - Gemini-style with proper spacing and visual markers */
+.prose-sm-tight ul,
+.prose-sm-tight ol {
+  padding-left: 1.5rem;
+  margin: 0.875rem 0;
+}
+
+.prose-sm-tight li {
+  margin-bottom: 0.625rem;
+  line-height: 1.65;
+  color: var(--color-text);
+  padding-left: 0.25rem;
+}
+
+/* Bullet markers - visible color */
+.prose-sm-tight ul > li::marker {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Numbered markers - visible color */
+.prose-sm-tight ol > li::marker {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* First bold element in li (lead term) - extra emphasis */
+.prose-sm-tight li > strong:first-child {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+/* Nested lists */
+.prose-sm-tight ul ul,
+.prose-sm-tight ol ol,
+.prose-sm-tight ul ol,
+.prose-sm-tight ol ul {
+  margin-top: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+
+/* Nested list markers - secondary color */
+.prose-sm-tight ul ul > li::marker,
+.prose-sm-tight ol ul > li::marker {
+  color: var(--text-tertiary);
+}
+
+/* Enhanced Blockquote (Gemini-inspired) */
+.prose-sm-tight blockquote {
+  border-left: 3px solid var(--accent-info);
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: var(--text-tertiary);
+  background: var(--callout-info-bg);
+  border-radius: 0 6px 6px 0;
+}
+
+.prose-sm-tight blockquote p {
+  margin-bottom: 0.5rem;
+}
+
+.prose-sm-tight blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Professional Table Styling - Gemini-style: Clean, borderless, dark */
+.prose-sm-tight table {
+  font-size: 0.9em;
+  border-collapse: collapse;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: none;
+  margin: 1.25rem 0;
+  width: 100%;
+  background: rgba(30, 30, 40, 0.6);
+}
+
+/* Light theme table background */
+[data-theme="light"] .prose-sm-tight table {
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.prose-sm-tight thead {
+  background: transparent;
+}
+
+.prose-sm-tight th {
+  font-weight: 600;
+  font-size: 0.85em;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+  padding: 0.875rem 1.25rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Light theme th */
+[data-theme="light"] .prose-sm-tight th {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-tertiary);
+}
+
+.prose-sm-tight td {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9em;
+  line-height: 1.5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+/* Light theme td */
+[data-theme="light"] .prose-sm-tight td {
+  border-bottom-color: rgba(0, 0, 0, 0.05);
+}
+
+.prose-sm-tight tr:last-child td {
+  border-bottom: none;
+}
+
+.prose-sm-tight tr:nth-child(even) {
+  background: transparent;
+}
+
+.prose-sm-tight tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+  transition: background 0.15s ease;
+}
+
+/* Light theme tr hover */
+[data-theme="light"] .prose-sm-tight tbody tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Horizontal Rule with Gradient */
+.prose-sm-tight hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-border) 20%,
+    var(--color-border) 80%,
+    transparent
+  );
+  margin: 1.5rem 0;
+  opacity: 0.6;
+}
+
+/* Semantic Callout Boxes (ChatGPT-style) */
+.prose-sm-tight .callout {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 8px;
+  border-left: 3px solid;
+  font-size: 0.925em;
+  line-height: 1.5;
+}
+
+.prose-sm-tight .callout-info {
+  background: var(--callout-info-bg);
+  border-color: var(--accent-info);
+  color: var(--text-primary);
+}
+
+.prose-sm-tight .callout-success {
+  background: var(--callout-success-bg);
+  border-color: var(--accent-success);
+  color: var(--text-primary);
+}
+
+.prose-sm-tight .callout-warning {
+  background: var(--callout-warning-bg);
+  border-color: var(--accent-warning);
+  color: var(--text-primary);
+}
+
+.prose-sm-tight .callout-error {
+  background: var(--callout-error-bg);
+  border-color: var(--accent-error);
+  color: var(--text-primary);
+}
+
+/* Task Lists */
+.prose-sm-tight input[type="checkbox"] {
+  margin-right: 0.5rem;
+  cursor: pointer;
+  accent-color: #9CA3AF; /* Gray accent (NO PURPLE) */
+}
+
+.prose-sm-tight li input[type="checkbox"] {
+  margin-left: -1.5rem;
+}
+
+/* Image Styling */
+.prose-sm-tight img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+/* Details/Summary */
+.prose-sm-tight details {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--callout-info-bg);
+  border: 1px solid var(--callout-info-border);
+}
+
+.prose-sm-tight summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.prose-sm-tight details[open] summary {
+  margin-bottom: 0.75rem;
+}
+
+/* Abbreviation */
+.prose-sm-tight abbr {
+  text-decoration: underline dotted;
+  cursor: help;
+}
+
+/* Definition Lists */
+.prose-sm-tight dl {
+  margin: 1rem 0;
+}
+
+.prose-sm-tight dt {
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 0.75rem;
+}
+
+.prose-sm-tight dd {
+  margin-left: 1.5rem;
+  margin-top: 0.25rem;
+  color: var(--text-tertiary);
+}
+
+/* Shiki Canvas Code Block - Ensure perfect line number alignment */
+.shiki-canvas-code pre {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.shiki-canvas-code pre code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.shiki-canvas-code .line {
+  display: block;
+  line-height: 1.5rem !important;
+  height: 1.5rem !important;
+  min-height: 1.5rem !important;
+}
+
+/* Fix Shiki code block glitching during render */
+.shiki, .shiki-container {
+  /* Prevent layout shifts during async highlighting */
+  contain: layout style paint;
+  will-change: contents;
+  min-height: 3em;
+}
+
+/* Smooth opacity transition as code blocks render */
+pre code {
+  opacity: 1;
+  transition: opacity 0.15s ease-in-out;
+}
+
+/* Loading state for code blocks */
+pre.loading code, pre[data-loading="true"] code {
+  opacity: 0.6;
+}
+
+/* ============================================
+   React Flow Diagram Theming
+   Dashboard-inspired styling for diagrams
+   ============================================ */
+
+/* Diagram container - uses glass-card styling */
+.react-flow-diagram {
+  background: rgba(30, 30, 46, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+/* React Flow node styling overrides */
+.react-flow__node {
+  transition: all 0.2s ease;
+}
+
+.react-flow__node:hover {
+  transform: translateY(-2px);
+  z-index: 10;
+}
+
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5), 0 8px 24px rgba(99, 102, 241, 0.25);
+}
+
+/* Edge labels */
+.react-flow__edge-textbg {
+  fill: rgba(30, 30, 46, 0.95);
+  rx: 4;
+  ry: 4;
+}
+
+.react-flow__edge-text {
+  fill: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Controls panel */
+.react-flow__controls {
+  background: rgba(30, 30, 46, 0.9);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--text-primary);
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+/* MiniMap */
+.react-flow__minimap {
+  background: rgba(30, 30, 46, 0.9);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Attribution hidden */
+.react-flow__attribution {
+  display: none;
+}
+
+/* Panel (used by controls/minimap positioning) */
+.react-flow__panel {
+  margin: 12px;
+}
+
+/* Edge path styling */
+.react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Animated edges */
+.react-flow__edge.animated .react-flow__edge-path {
+  animation: dash 1.5s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+/* Selection box */
+.react-flow__selection {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px dashed rgba(99, 102, 241, 0.5);
+}
+
+/* Pane (background) interactions */
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__pane:active {
+  cursor: grabbing;
+}
+
+/* Handle styling (connection points) */
+.react-flow__handle {
+  background: rgba(99, 102, 241, 0.8);
+  border: 2px solid rgba(30, 30, 46, 0.9);
+  width: 8px;
+  height: 8px;
+  transition: all 0.15s ease;
+}
+
+.react-flow__handle:hover {
+  background: var(--primary-500);
+  transform: scale(1.3);
+}
+
+/* Node resizer */
+.react-flow__resize-control {
+  background: rgba(99, 102, 241, 0.8);
+  border-radius: 2px;
+}
+
+/* ============================================
+   Code Mode Typography & Styling
+   Tight, compact terminal-like UI with Nerd Font support
+   ============================================ */
+
+/* Code Mode Container - GitHub-inspired dark theme */
+.code-mode {
+  font-family: var(--font-code);
+  font-size: var(--font-code-size);
+  line-height: var(--font-code-line-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+/* Code Mode Dark Theme (default) */
+.code-mode {
+  --cm-bg: #0d1117;
+  --cm-bg-secondary: #161b22;
+  --cm-bg-tertiary: #21262d;
+  --cm-border: #30363d;
+  --cm-text: #c9d1d9;
+  --cm-text-secondary: #8b949e;
+  --cm-text-muted: #6e7681;
+  --cm-accent: var(--user-accent-primary, #58a6ff);
+  --cm-success: #3fb950;
+  --cm-warning: #d29922;
+  --cm-error: #f85149;
+  --cm-info: #58a6ff;
+}
+
+/* Code Mode Light Theme */
+.code-mode.light,
+[data-theme="light"] .code-mode {
+  --cm-bg: #ffffff;
+  --cm-bg-secondary: #f6f8fa;
+  --cm-bg-tertiary: #f0f3f6;
+  --cm-border: #d0d7de;
+  --cm-text: #1f2328;
+  --cm-text-secondary: #57606a;
+  --cm-text-muted: #8c959f;
+  --cm-accent: var(--user-accent-primary, #0969da);
+  --cm-success: #1a7f37;
+  --cm-warning: #9a6700;
+  --cm-error: #d1242f;
+  --cm-info: #0969da;
+}
+
+/* Code Mode Header */
+.code-mode-header {
+  background: var(--cm-bg-secondary);
+  border-bottom: 1px solid var(--cm-border);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--cm-text);
+}
+
+/* Code Mode Panel */
+.code-mode-panel {
+  background: var(--cm-bg);
+  border: 1px solid var(--cm-border);
+  font-family: var(--font-code);
+}
+
+/* Code Mode Messages - Tight compact layout */
+.code-mode-message {
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-bottom: 1px solid var(--cm-border);
+}
+
+.code-mode-message.user {
+  background: var(--cm-bg-secondary);
+  color: var(--cm-text);
+}
+
+.code-mode-message.assistant {
+  background: var(--cm-bg);
+  color: var(--cm-text);
+}
+
+/* Code Mode Input */
+.code-mode-input {
+  background: var(--cm-bg-secondary);
+  border: 1px solid var(--cm-border);
+  border-radius: 4px;
+  font-family: var(--font-code);
+  font-size: 12px;
+  color: var(--cm-text);
+  padding: 8px 10px;
+}
+
+.code-mode-input:focus {
+  border-color: var(--cm-accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+}
+
+.code-mode-input::placeholder {
+  color: var(--cm-text-muted);
+}
+
+/* Code Mode Activity States */
+.code-mode-activity {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-family: var(--font-code);
+}
+
+.code-mode-activity.thinking {
+  color: var(--cm-info);
+}
+
+.code-mode-activity.writing {
+  color: var(--cm-success);
+}
+
+.code-mode-activity.editing {
+  color: var(--cm-warning);
+}
+
+.code-mode-activity.executing {
+  color: var(--cm-accent);
+}
+
+.code-mode-activity.error {
+  color: var(--cm-error);
+}
+
+/* Code Mode Code Blocks - Extra tight */
+.code-mode pre,
+.code-mode code {
+  font-family: var(--font-code);
+  font-size: 11px;
+  line-height: 1.35;
+  tab-size: 2;
+}
+
+.code-mode pre {
+  background: var(--cm-bg-tertiary);
+  border: 1px solid var(--cm-border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  overflow-x: auto;
+}
+
+.code-mode code {
+  background: var(--cm-bg-tertiary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: var(--cm-text);
+}
+
+/* Code Mode File List - Compact */
+.code-mode-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--cm-text-secondary);
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+
+.code-mode-file:hover {
+  background: var(--cm-bg-tertiary);
+  color: var(--cm-text);
+}
+
+.code-mode-file .icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+/* Nerd Font Icon Support - for Powerlevel10k glyphs */
+.code-mode .nf-icon,
+.code-mode [class^="nf-"],
+.code-mode [class*=" nf-"] {
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Terminal prompt styling (oh-my-zsh compatible) */
+.code-mode-prompt {
+  font-family: var(--font-code);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  color: var(--cm-text);
+}
+
+.code-mode-prompt .prompt-user {
+  color: var(--cm-success);
+}
+
+.code-mode-prompt .prompt-host {
+  color: var(--cm-warning);
+}
+
+.code-mode-prompt .prompt-path {
+  color: var(--cm-info);
+}
+
+.code-mode-prompt .prompt-git {
+  color: var(--cm-accent);
+}
+
+.code-mode-prompt .prompt-arrow {
+  color: var(--cm-success);
+}
+
+/* Activity Canvas - Code Mode Specific */
+.code-mode-canvas {
+  background: var(--cm-bg);
+  font-family: var(--font-code);
+  font-size: 11px;
+}
+
+.code-mode-canvas-header {
+  background: var(--cm-bg-secondary);
+  border-bottom: 1px solid var(--cm-border);
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cm-text-muted);
+}
+
+/* Diff View in Code Mode */
+.code-mode-diff {
+  font-family: var(--font-code);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.code-mode-diff .line-added {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--cm-success);
+}
+
+.code-mode-diff .line-removed {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--cm-error);
+}
+
+.code-mode-diff .line-context {
+  color: var(--cm-text-muted);
+}
+
+.code-mode-diff .line-number {
+  color: var(--cm-text-muted);
+  padding-right: 8px;
+  min-width: 32px;
+  text-align: right;
+  user-select: none;
+}
+
+/* Command Output in Code Mode */
+.code-mode-output {
+  font-family: var(--font-code);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 6px 10px;
+  background: var(--cm-bg-tertiary);
+  border-radius: 4px;
+  color: var(--cm-text);
+}
+
+.code-mode-output.stdout {
+  color: var(--cm-text);
+}
+
+.code-mode-output.stderr {
+  color: var(--cm-error);
+}
+
+/* Button in Code Mode */
+.code-mode-button {
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--cm-border);
+  background: var(--cm-bg-secondary);
+  color: var(--cm-text);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.code-mode-button:hover {
+  background: var(--cm-bg-tertiary);
+  border-color: var(--cm-accent);
+}
+
+.code-mode-button.primary {
+  background: var(--cm-accent);
+  border-color: var(--cm-accent);
+  color: #fff;
+}
+
+.code-mode-button.primary:hover {
+  filter: brightness(1.1);
+}
+
+/* Status indicators */
+.code-mode-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-family: var(--font-code);
+}
+
+.code-mode-status .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.code-mode-status.connected .dot {
+  background: var(--cm-success);
+}
+
+.code-mode-status.disconnected .dot {
+  background: var(--cm-error);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ============================================
+   AgentiCode Style - Inline Components
+   V2 Layout for pure React Code Mode
+   ============================================ */
+
+/* User message bubble - right aligned */
+.user-bubble {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-radius: 20px 20px 4px 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Tight prose for assistant messages */
+.prose-sm-tight {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.prose-sm-tight p {
+  margin-bottom: 0.75em;
+}
+
+.prose-sm-tight code {
+  font-family: var(--font-code);
+  font-size: 13px;
+  background: var(--cm-bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--cm-text);
+}
+
+.prose-sm-tight pre {
+  margin: 12px 0;
+  padding: 12px 16px;
+  background: var(--cm-bg-secondary);
+  border: 1px solid var(--cm-border);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.prose-sm-tight pre code {
+  background: none;
+  padding: 0;
+  font-size: 12px;
+}
+
+.prose-sm-tight ul, .prose-sm-tight ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.prose-sm-tight li {
+  margin: 0.25em 0;
+}
+
+/* Blinking block cursor */
+.blinking-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background: var(--color-primary);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: cursor-blink 1s step-end infinite;
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Strikethrough animation for completed todos */
+.strikethrough-animate {
+  position: relative;
+}
+
+.strikethrough-animate::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0;
+  height: 1.5px;
+  background: var(--color-textMuted);
+  transform: translateY(-50%);
+  animation: strikethrough-sweep 0.4s ease-out forwards;
+}
+
+@keyframes strikethrough-sweep {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+/* Tool block header with orange bullet */
+.tool-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-code);
+  font-size: 13px;
+}
+
+.tool-block-header .bullet {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--accent-warning);
+}
+
+/* Tree connector line */
+.tree-connector {
+  color: var(--color-textMuted);
+  margin-left: 7px;
+  margin-right: 8px;
+  font-family: var(--font-code);
+}
+
+/* Diff block container */
+.diff-block {
+  background: var(--cm-bg);
+  border: 1px solid var(--cm-border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: var(--font-code);
+}
+
+.diff-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--cm-bg-secondary);
+  border-bottom: 1px solid var(--cm-border);
+  font-size: 11px;
+  color: var(--cm-text-muted);
+}
+
+.diff-line {
+  display: flex;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.diff-line.add {
+  background: rgba(63, 185, 80, 0.15);
+}
+
+.diff-line.remove {
+  background: rgba(248, 81, 73, 0.15);
+}
+
+.diff-line .line-number {
+  color: var(--cm-text-muted);
+  padding: 0 8px;
+  min-width: 40px;
+  text-align: right;
+  user-select: none;
+  border-right: 1px solid var(--cm-border);
+}
+
+.diff-line .marker {
+  min-width: 16px;
+  padding: 0 4px;
+  font-weight: bold;
+  user-select: none;
+}
+
+.diff-line.add .marker {
+  color: var(--cm-success);
+}
+
+.diff-line.remove .marker {
+  color: var(--cm-error);
+}
+
+.diff-line .content {
+  flex: 1;
+  padding: 0 8px;
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--cm-text);
+}
+
+/* Todo list styles */
+.todo-list {
+  margin: 12px 0;
+}
+
+.todo-list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.todo-list-header .bullet {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--accent-warning);
+}
+
+.todo-list-header .title {
+  font-family: var(--font-code);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-warning);
+}
+
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 2px 0;
+  font-family: var(--font-code);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.todo-item .connector {
+  color: var(--color-textMuted);
+  width: 16px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.todo-item .checkbox {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.todo-item.completed .text {
+  color: var(--color-textMuted);
+  text-decoration: line-through;
+}
+
+.todo-item.in-progress .text {
+  color: var(--color-text);
+}
+
+.todo-item.in-progress .checkbox {
+  color: var(--accent-warning);
+}
+
+.todo-item.completed .checkbox {
+  color: var(--cm-success);
+}
+
+.todo-item.pending .checkbox {
+  color: var(--color-textMuted);
+}
+
+/* Activity indicator with fun messages */
+.activity-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  font-family: var(--font-code);
+  font-size: 13px;
+}
+
+.activity-indicator .asterisk {
+  color: var(--accent-warning);
+  font-weight: bold;
+}
+
+.activity-indicator .message {
+  color: var(--accent-warning);
+}
+
+.activity-indicator .dots {
+  display: inline-block;
+  width: 18px;
+  text-align: left;
+}
+
+/* Shimmer effect for thinking state */
+.shimmer-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-effect::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    transparent 100%
+  );
+  animation: shimmer-slide 1.5s linear infinite;
+}
+
+@keyframes shimmer-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(200%); }
+}
+
+/* Status pill badges */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-code);
+}
+
+.status-pill.success {
+  background: color-mix(in srgb, var(--cm-success) 20%, transparent);
+  color: var(--cm-success);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cm-success) 30%, transparent);
+}
+
+.status-pill.warning {
+  background: color-mix(in srgb, var(--accent-warning) 20%, transparent);
+  color: var(--accent-warning);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-warning) 30%, transparent);
+}
+
+.status-pill.error {
+  background: color-mix(in srgb, var(--cm-error) 20%, transparent);
+  color: var(--cm-error);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cm-error) 30%, transparent);
+}
+
+.status-pill.info {
+  background: color-mix(in srgb, var(--cm-info) 20%, transparent);
+  color: var(--cm-info);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cm-info) 30%, transparent);
+}
+
+/* ============================================
+   Admin Portal Typography & Styling
+   GCP-inspired with Nerd Font accents
+   80% Professional / 20% Nerd Party
+   ============================================ */
+
+.admin-portal {
+  /* GCP uses Roboto/Google Sans - we add Nerd Font for terminal elements */
+  font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+/* Nerd font for code/terminal elements in admin */
+.admin-portal code,
+.admin-portal pre,
+.admin-portal .admin-mono,
+.admin-portal .admin-terminal {
+  font-family: var(--font-admin);
+  font-size: 11px;
+}
+
+/* Admin Portal - Glassmorphic design with lava background visibility */
+.admin-portal {
+  /* Glassmorphic background colors - semi-transparent to show lava effect */
+  --ap-bg: color-mix(in srgb, var(--color-background) 85%, transparent);
+  --ap-bg-secondary: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  --ap-bg-tertiary: color-mix(in srgb, var(--color-surfaceSecondary) 92%, transparent);
+  --ap-bg-card: color-mix(in srgb, var(--color-surfaceTertiary) 88%, transparent);
+  --ap-bg-overlay: color-mix(in srgb, var(--color-background) 70%, transparent);
+
+  /* Enable backdrop blur for glass effect */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+
+  /* Border colors */
+  --ap-border: var(--color-border);
+  --ap-border-light: var(--color-borderHover);
+
+  /* Text colors */
+  --ap-text: var(--color-text);
+  --ap-text-secondary: var(--color-textSecondary);
+  --ap-text-muted: var(--color-textMuted);
+
+  /* Accent colors - map to existing semantic colors */
+  --ap-accent: var(--color-primary);
+  --ap-accent-hover: var(--color-secondary);
+  --ap-success: var(--color-success);
+  --ap-warning: var(--color-warning);
+  --ap-error: var(--color-error);
+  --ap-info: var(--accent-info);
+  --ap-purple: var(--color-primary);
+  --ap-cyan: var(--color-secondary);
+
+  /* Navigation active state - uses accent with transparency */
+  --ap-nav-active-bg: color-mix(in srgb, var(--color-primary) 12%, transparent);
+
+  /* Segment/badge backgrounds - use semantic colors with transparency */
+  --ap-segment-success-bg: color-mix(in srgb, var(--color-success) 15%, transparent);
+  --ap-segment-success-border: color-mix(in srgb, var(--color-success) 30%, transparent);
+  --ap-segment-warning-bg: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  --ap-segment-warning-border: color-mix(in srgb, var(--color-warning) 30%, transparent);
+  --ap-segment-error-bg: color-mix(in srgb, var(--color-error) 15%, transparent);
+  --ap-segment-error-border: color-mix(in srgb, var(--color-error) 30%, transparent);
+  --ap-segment-info-bg: color-mix(in srgb, var(--accent-info) 15%, transparent);
+  --ap-segment-info-border: color-mix(in srgb, var(--accent-info) 30%, transparent);
+
+  /* Status colors for sessions/processes */
+  --ap-status-running: var(--color-success);
+  --ap-status-idle: var(--color-warning);
+  --ap-status-stopped: var(--color-textMuted);
+  --ap-status-error: var(--color-error);
+
+  /* Chart colors - derived from theme */
+  --ap-chart-primary: var(--color-primary);
+  --ap-chart-secondary: var(--color-secondary);
+  --ap-chart-success: var(--color-success);
+  --ap-chart-warning: var(--color-warning);
+  --ap-chart-error: var(--color-error);
+  --ap-chart-info: var(--accent-info);
+  --ap-chart-grid: color-mix(in srgb, var(--color-text) 8%, transparent);
+  --ap-chart-axis: var(--color-textMuted);
+
+  /* Card/Modal styling */
+  --ap-card-bg: var(--color-surface);
+  --ap-card-border: var(--color-border);
+  --ap-card-shadow: var(--color-shadow);
+  --ap-card-hover-bg: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+
+  /* Tooltip styling */
+  --ap-tooltip-bg: var(--color-surfaceTertiary);
+  --ap-tooltip-border: var(--color-border);
+  --ap-tooltip-text: var(--color-text);
+
+  /* Terminal/Code styling */
+  --ap-terminal-bg: var(--color-background);
+  --ap-terminal-text: var(--color-success);
+  --ap-terminal-glow: color-mix(in srgb, var(--color-success) 50%, transparent);
+
+  /* Progress indicators */
+  --ap-progress-low: var(--color-success);
+  --ap-progress-medium: var(--color-warning);
+  --ap-progress-high: var(--color-error);
+}
+
+/* GCP-style navigation sidebar with glassmorphic effect */
+.admin-portal .admin-sidebar {
+  background: var(--ap-bg-secondary);
+  border-right: 1px solid var(--ap-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Glassmorphic main content area */
+.admin-portal .admin-main-content {
+  background: var(--ap-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.admin-portal .admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ap-text-secondary);
+  border-radius: 0 24px 24px 0;
+  margin-right: 8px;
+  transition: all 0.15s ease;
+}
+
+.admin-portal .admin-nav-item:hover {
+  background: var(--ap-bg-tertiary);
+  color: var(--ap-text);
+}
+
+.admin-portal .admin-nav-item.active {
+  background: var(--ap-nav-active-bg);
+  color: var(--ap-accent);
+}
+
+/* GCP-style header */
+.admin-portal .admin-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--ap-bg);
+  border-bottom: 1px solid var(--ap-border);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* GCP-style breadcrumb */
+.admin-portal .admin-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ap-text-muted);
+}
+
+.admin-portal .admin-breadcrumb a {
+  color: var(--ap-accent);
+  text-decoration: none;
+}
+
+.admin-portal .admin-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+/* Admin section headers with Powerlevel10k style */
+.admin-section-header {
+  font-family: var(--font-admin);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--ap-bg-secondary);
+  border-bottom: 1px solid var(--ap-border);
+  color: var(--ap-text);
+}
+
+/* Powerlevel10k style segment/badge */
+.admin-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-admin);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  background: var(--ap-bg-tertiary);
+  color: var(--ap-text-secondary);
+  border: 1px solid var(--ap-border);
+}
+
+.admin-segment.success {
+  background: var(--ap-segment-success-bg);
+  border-color: var(--ap-segment-success-border);
+  color: var(--ap-success);
+}
+
+.admin-segment.warning {
+  background: var(--ap-segment-warning-bg);
+  border-color: var(--ap-segment-warning-border);
+  color: var(--ap-warning);
+}
+
+.admin-segment.error {
+  background: var(--ap-segment-error-bg);
+  border-color: var(--ap-segment-error-border);
+  color: var(--ap-error);
+}
+
+.admin-segment.info {
+  background: var(--ap-segment-info-bg);
+  border-color: var(--ap-segment-info-border);
+  color: var(--ap-info);
+}
+
+/* Nerd Font icon support - Powerlevel10k glyphs */
+.admin-icon {
+  font-family: var(--font-admin);
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Common Powerlevel10k/oh-my-zsh icons (using Unicode private use area) */
+.admin-icon-folder::before { content: '\uf115'; } /*  */
+.admin-icon-git::before { content: '\ue725'; } /*  */
+.admin-icon-branch::before { content: '\ue0a0'; } /*  */
+.admin-icon-nodejs::before { content: '\ue718'; } /*  */
+.admin-icon-python::before { content: '\ue73c'; } /*  */
+.admin-icon-docker::before { content: '\ue7b0'; } /*  */
+.admin-icon-database::before { content: '\uf1c0'; } /*  */
+.admin-icon-server::before { content: '\uf233'; } /*  */
+.admin-icon-terminal::before { content: '\uf120'; } /*  */
+.admin-icon-code::before { content: '\uf121'; } /*  */
+.admin-icon-cog::before { content: '\uf013'; } /*  */
+.admin-icon-user::before { content: '\uf007'; } /*  */
+.admin-icon-users::before { content: '\uf0c0'; } /*  */
+.admin-icon-lock::before { content: '\uf023'; } /*  */
+.admin-icon-key::before { content: '\uf084'; } /*  */
+.admin-icon-chart::before { content: '\uf080'; } /*  */
+.admin-icon-clock::before { content: '\uf017'; } /*  */
+.admin-icon-check::before { content: '\uf00c'; } /*  */
+.admin-icon-times::before { content: '\uf00d'; } /*  */
+.admin-icon-warning::before { content: '\uf071'; } /*  */
+.admin-icon-info::before { content: '\uf05a'; } /*  */
+.admin-icon-cpu::before { content: '\uf2db'; } /*  */
+.admin-icon-memory::before { content: '\uf538'; } /*  */
+.admin-icon-network::before { content: '\uf0ac'; } /*  */
+.admin-icon-cloud::before { content: '\uf0c2'; } /*  */
+.admin-icon-api::before { content: '\uf1b3'; } /*  */
+.admin-icon-arrow-right::before { content: '\ue0b0'; } /*  */
+.admin-icon-arrow-left::before { content: '\ue0b2'; } /*  */
+
+/* Admin metrics card */
+.admin-metric-card {
+  font-family: var(--font-admin);
+  padding: 12px 16px;
+  background: var(--ap-bg-secondary);
+  border: 1px solid var(--ap-border);
+  border-radius: 6px;
+}
+
+.admin-metric-card .value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ap-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-metric-card .label {
+  font-size: 11px;
+  color: var(--ap-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Admin table styling */
+.admin-table {
+  font-family: var(--font-admin);
+  font-size: 12px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ap-text-muted);
+  background: var(--ap-bg-tertiary);
+  border-bottom: 1px solid var(--ap-border);
+}
+
+.admin-table td {
+  padding: 10px 12px;
+  color: var(--ap-text);
+  border-bottom: 1px solid var(--ap-border);
+}
+
+.admin-table tr:hover td {
+  background: var(--ap-bg-secondary);
+}
+
+/* Admin prompt/command line style */
+.admin-prompt {
+  font-family: var(--font-admin);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--ap-bg);
+  border: 1px solid var(--ap-border);
+  border-radius: 4px;
+}
+
+.admin-prompt .user {
+  color: var(--ap-success);
+}
+
+.admin-prompt .host {
+  color: var(--ap-warning);
+}
+
+.admin-prompt .path {
+  color: var(--ap-info);
+}
+
+.admin-prompt .branch {
+  color: var(--ap-accent);
+}
+
+.admin-prompt .arrow {
+  color: var(--ap-success);
+}
+
+/* Admin status dot */
+.admin-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.admin-status-dot.online {
+  background: var(--ap-success);
+  box-shadow: 0 0 6px var(--ap-success);
+}
+
+.admin-status-dot.offline {
+  background: var(--ap-error);
+}
+
+.admin-status-dot.warning {
+  background: var(--ap-warning);
+  animation: pulse 1.5s infinite;
+}
+
+/* Admin button */
+.admin-btn {
+  font-family: var(--font-admin);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--ap-border);
+  background: var(--ap-bg-secondary);
+  color: var(--ap-text);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-btn:hover {
+  background: var(--ap-bg-tertiary);
+  border-color: var(--ap-accent);
+}
+
+.admin-btn.primary {
+  background: var(--ap-accent);
+  border-color: var(--ap-accent);
+  color: #fff;
+}
+
+.admin-btn.danger {
+  background: rgba(248, 81, 73, 0.15);
+  border-color: var(--ap-error);
+  color: var(--ap-error);
+}
+
+.admin-btn.danger:hover {
+  background: var(--ap-error);
+  color: #fff;
+}
+
+/* =============================================================================
+   ADMIN UI V2 - Clean, Professional Styling (Vercel/Stripe/Linear inspired)
+   ============================================================================= */
+
+/* Admin Search Input Focus */
+.admin-search-input:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent) !important;
+}
+
+/* Admin Input Focus */
+.admin-input:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent) !important;
+}
+
+/* Admin Checkbox */
+.admin-checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+}
+
+.admin-checkbox:hover {
+  border-color: var(--color-borderHover);
+}
+
+.admin-checkbox:checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.admin-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 1.5px;
+  width: 5px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.admin-checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+/* Admin Card Hover */
+.admin-card.hoverable:hover {
+  border-color: var(--color-borderHover);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Admin section spacing */
+.admin-section {
+  margin-bottom: 32px;
+}
+
+.admin-section:last-child {
+  margin-bottom: 0;
+}
+
+/* Admin grid layouts */
+.admin-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.admin-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.admin-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1200px) {
+  .admin-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .admin-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-grid-4,
+  .admin-grid-3,
+  .admin-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Admin page padding */
+.admin-page {
+  padding: 24px 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .admin-page {
+    padding: 16px 20px;
+  }
+}
+
+/* Admin tabs - clean style */
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0;
+  margin-bottom: 24px;
+}
+
+.admin-tab {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-textMuted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.admin-tab:hover {
+  color: var(--color-text);
+}
+
+.admin-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Admin list */
+.admin-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.15s;
+}
+
+.admin-list-item:last-child {
+  border-bottom: none;
+}
+
+.admin-list-item:hover {
+  background-color: var(--color-surfaceHover);
+}
+
+.admin-list-item.clickable {
+  cursor: pointer;
+}
+
+/* Admin detail row */
+.admin-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.admin-detail-row:last-child {
+  border-bottom: none;
+}
+
+.admin-detail-label {
+  color: var(--color-textMuted);
+  font-weight: 500;
+}
+
+.admin-detail-value {
+  color: var(--color-text);
+  text-align: right;
+}
+
+/* Admin dropdown / select */
+.admin-select {
+  padding: 10px 36px 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238E8E93' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color 0.15s;
+}
+
+.admin-select:hover {
+  border-color: var(--color-borderHover);
+}
+
+.admin-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+}
+
+/* Admin tooltip */
+.admin-tooltip {
+  position: relative;
+}
+
+.admin-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  padding: 6px 10px;
+  background: var(--color-text);
+  color: var(--color-surface);
+  font-size: 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s, visibility 0.15s;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.admin-tooltip:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Admin badge count */
+.admin-badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-primary);
+  color: white;
+}
+
+/* =============================================================================
+   RIPPLE BUTTON ANIMATION
+   ============================================================================= */
+
+@keyframes ripple {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  100% {
+    width: 500px;
+    height: 500px;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.animate-ripple {
+  animation: ripple 600ms ease-out;
+}

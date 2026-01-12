@@ -1,0 +1,13 @@
+[project]
+name = "awp-agenticwork-cli-mcp"
+version = "1.0.0"
+description = "AgenticWork CLI MCP - Controlled Agentic Workflows"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=0.4.0",
+    "httpx>=0.25.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

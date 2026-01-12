@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+*.py
+*.html
+complex_snippet.py
+hello.py
+index.html
+matrix_math.py
+test_gpu.py

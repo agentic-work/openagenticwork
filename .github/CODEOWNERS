@@ -1,0 +1,10 @@
+# OpenAgenticWork Code Owners
+# These users/teams will be requested for review when a PR is opened
+
+# Default owners for everything in the repo
+* @agentic-work/core-team
+
+# Service-specific owners (optional, if you have specialized teams)
+# /services/agenticwork-api/ @agentic-work/backend-team
+# /services/agenticwork-ui/ @agentic-work/frontend-team
+# /services/agenticwork-mcp-proxy/ @agentic-work/platform-team

@@ -1,0 +1,21 @@
+packages:
+  - services/agenticwork-ui
+  - services/agenticwork-api
+
+ignoredBuiltDependencies:
+  - '@parcel/watcher'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - bcrypt
+  - canvas
+  - core-js
+  - core-js-pure
+  - cpu-features
+  - esbuild
+  - msgpackr-extract
+  - prisma
+  - protobufjs
+  - puppeteer
+  - sharp
+  - ssh2
+  - unrs-resolver

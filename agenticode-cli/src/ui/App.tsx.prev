@@ -1,0 +1,425 @@
+/**
+ * Fixed App Component - Proper Ink Layout
+ *
+ * Based on gemini-cli approach:
+ * - Use Static for completed messages (with proper constraints)
+ * - Separate fixed section for active streaming/thinking
+ * - Input in fixed bottom section
+ * - Proper flex layout to prevent overflow issues
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Box, Text, useApp, useInput, Static } from 'ink';
+import { Banner, Message, ResizableInput, StatusBar, TaskList, ConfirmationDialog } from './components/index.js';
+import { ToolExecutionDisplay, type ToolExecution } from './components/ToolExecutionDisplay.js';
+import { LiveThinkingDisplay } from './components/LiveThinkingDisplay.js';
+import { colors } from './themes/colors.js';
+import type { ChatSession } from '../core/session.js';
+import { DestructiveAction } from '../core/hitl.js';
+import { getVersion } from '../version.js';
+import { executeCommand, isCommand, type CommandContext } from '../core/commands.js';
+import type { AuthClient } from '../core/auth-client.js';
+import type { Task } from './components/TaskList.js';
+
+interface AppProps {
+  session: ChatSession;
+  model: string;
+  workingDirectory: string;
+  initialPrompt?: string;
+  yoloMode?: boolean;
+  authClient?: AuthClient;
+}
+
+type AppState = 'idle' | 'thinking' | 'streaming';
+
+interface CompletedMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  tools?: ToolExecution[];
+}
+
+// Parse tool execution from streaming content
+function parseToolExecution(content: string): ToolExecution[] {
+  const executions: ToolExecution[] = [];
+  const lines = content.split('\n');
+  let current: ToolExecution | null = null;
+
+  for (const line of lines) {
+    const toolMatch = line.match(/^●\s+(\w+)\((.*)\)/);
+    if (toolMatch) {
+      if (current) {
+        current.status = 'success';
+        current.endTime = Date.now();
+        executions.push(current);
+      }
+      current = {
+        id: `tool_${executions.length}_${Date.now()}`,
+        name: toolMatch[1],
+        args: toolMatch[2],
+        status: 'running',
+        startTime: Date.now(),
+        output: '',
+      };
+      continue;
+    }
+
+    if (current && (line.match(/^\s*⎿/) || line.match(/^\s{5,}/))) {
+      const outputLine = line.replace(/^\s*⎿\s*/, '').trim();
+      if (outputLine) {
+        current.output += (current.output ? '\n' : '') + outputLine;
+      }
+    }
+  }
+
+  if (current) {
+    current.status = 'success';
+    current.endTime = Date.now();
+    executions.push(current);
+  }
+
+  return executions;
+}
+
+// Strip tool markers from text
+function stripToolMarkers(content: string): string {
+  return content
+    .split('\n')
+    .filter(line => !line.match(/^●\s+\w+\(/) && !line.match(/^\s*⎿/))
+    .join('\n')
+    .trim();
+}
+
+// Parse tasks from content
+function parseTasks(content: string): Task[] {
+  const tasks: Task[] = [];
+  const patterns = [
+    /^[-*]\s*\[\s*\]\s*(.+)$/gm,
+    /^[-*]\s*\[x\]\s*(.+)$/gim,
+    /^☐\s+(.+)$/gm,
+    /^☑\s+(.+)$/gm,
+  ];
+
+  let id = 0;
+  for (const pattern of patterns) {
+    const matches = content.matchAll(pattern);
+    for (const match of matches) {
+      const taskContent = match[1].trim();
+      if (taskContent && taskContent.length >= 5) {
+        const isChecked = match[0].includes('[x]') || match[0].includes('☑');
+        tasks.push({
+          id: `task_${id++}`,
+          content: taskContent,
+          status: isChecked ? 'completed' : 'pending',
+        });
+      }
+    }
+  }
+
+  return tasks;
+}
+
+interface PendingHITLAction {
+  action: DestructiveAction;
+  toolCall: { name: string; id: string; arguments: Record<string, unknown> };
+  resolve: (approved: boolean) => void;
+}
+
+// Maximum number of messages to keep in Static (prevents terminal overflow)
+const MAX_STATIC_MESSAGES = 10;
+
+export const App: React.FC<AppProps> = ({
+  session,
+  model: initialModel,
+  workingDirectory,
+  initialPrompt,
+  yoloMode = false,
+  authClient,
+}) => {
+  const { exit } = useApp();
+  const [state, setState] = useState<AppState>('idle');
+  const [completedMessages, setCompletedMessages] = useState<CompletedMessage[]>([]);
+  const [streamingContent, setStreamingContent] = useState('');
+  const [streamingTools, setStreamingTools] = useState<ToolExecution[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksPanelVisible, setTasksPanelVisible] = useState(true);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [tokenCount, setTokenCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [currentModel, setCurrentModel] = useState(initialModel);
+  const [pendingHITL, setPendingHITL] = useState<PendingHITLAction | null>(null);
+  const [thinkingStartTime, setThinkingStartTime] = useState<number | null>(null);
+  const [bannerShown, setBannerShown] = useState(false);
+
+  // Keyboard shortcuts
+  useInput((input, key) => {
+    if (key.ctrl && input === 'c') {
+      if (state !== 'idle') {
+        session.abort();
+        setState('idle');
+      } else {
+        exit();
+      }
+    } else if (key.ctrl && input === 'o') {
+      setExpandedItems(prev => prev.size > 0 ? new Set() : new Set(['all']));
+    } else if (key.ctrl && input === 't') {
+      setTasksPanelVisible(prev => !prev);
+    }
+  });
+
+  const processMessage = useCallback(
+    async (input: string) => {
+      // Handle slash commands
+      if (isCommand(input)) {
+        const cmdContext: CommandContext = {
+          session,
+          authClient,
+          workingDirectory,
+          currentModel,
+          onModelChange: setCurrentModel,
+          onClear: () => {
+            setCompletedMessages([]);
+            setBannerShown(false);
+          },
+          onExit: () => exit(),
+        };
+
+        const result = await executeCommand(input, cmdContext);
+        if (result.handled && result.output) {
+          // Add command output to completed messages
+          setCompletedMessages(prev => [
+            ...prev,
+            { role: 'assistant', content: result.output }
+          ]);
+        }
+        return;
+      }
+
+      // Add user message to completed messages
+      setCompletedMessages(prev => [...prev, { role: 'user', content: input }]);
+
+      setState('thinking');
+      setStreamingContent('');
+      setStreamingTools([]);
+      setError(null);
+      setThinkingStartTime(Date.now());
+
+      try {
+        let fullResponse = '';
+        let hasStartedStreaming = false;
+
+        for await (const chunk of session.chat(input)) {
+          if (!hasStartedStreaming && chunk.trim()) {
+            setState('streaming');
+            hasStartedStreaming = true;
+          }
+
+          fullResponse += chunk;
+          setStreamingContent(fullResponse);
+
+          // Parse tool executions as they stream
+          const toolExecs = parseToolExecution(fullResponse);
+          setStreamingTools(toolExecs);
+        }
+
+        // Add final response to completed messages
+        const finalTools = parseToolExecution(fullResponse);
+        const cleanText = stripToolMarkers(fullResponse);
+
+        setCompletedMessages(prev => [
+          ...prev,
+          { role: 'assistant', content: cleanText, tools: finalTools }
+        ]);
+
+        // Parse tasks
+        const newTasks = parseTasks(fullResponse);
+        if (newTasks.length > 0) {
+          setTasks(prev => {
+            const existing = new Set(prev.map(t => t.content));
+            const toAdd = newTasks.filter(t => !existing.has(t.content));
+            return [...prev, ...toAdd];
+          });
+        }
+
+        setStreamingContent('');
+        setStreamingTools([]);
+        setState('idle');
+        setThinkingStartTime(null);
+
+        // Update token count
+        try {
+          const stats = session.getContextStats();
+          if (stats.totalTokens > 0) {
+            setTokenCount(stats.totalTokens);
+          }
+        } catch {
+          // Ignore
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setState('idle');
+        setThinkingStartTime(null);
+      }
+    },
+    [session, state, exit, authClient, workingDirectory, currentModel]
+  );
+
+  // Process initial prompt
+  useEffect(() => {
+    if (initialPrompt) {
+      processMessage(initialPrompt);
+    }
+  }, []);
+
+  // Show banner once
+  useEffect(() => {
+    if (!bannerShown) {
+      setBannerShown(true);
+    }
+  }, []);
+
+  // HITL handlers
+  const handleHITLConfirm = useCallback(() => {
+    if (pendingHITL) {
+      pendingHITL.resolve(true);
+      setPendingHITL(null);
+    }
+  }, [pendingHITL]);
+
+  const handleHITLDeny = useCallback(() => {
+    if (pendingHITL) {
+      pendingHITL.resolve(false);
+      setPendingHITL(null);
+    }
+  }, [pendingHITL]);
+
+  const handleHITLAlwaysAllow = useCallback(() => {
+    if (pendingHITL) {
+      pendingHITL.resolve(true);
+      setPendingHITL(null);
+    }
+  }, [pendingHITL]);
+
+  const isExpanded = expandedItems.has('all');
+
+  // Only keep recent messages in Static to prevent overflow
+  const recentMessages = completedMessages.slice(-MAX_STATIC_MESSAGES);
+
+  return (
+    <Box flexDirection="column" width="100%">
+      {/* Content area - can grow */}
+      <Box flexDirection="column" flexGrow={1} flexShrink={1}>
+        {/* Static section for completed messages (limited to prevent overflow) */}
+        <Static items={[
+        { type: 'banner' as const, key: 'banner' },
+        ...recentMessages.map((msg, i) => ({ type: 'message' as const, msg, key: `msg-${i}` }))
+      ]}>
+        {item => {
+          if (item.type === 'banner') {
+            return (
+              <Banner
+                key="banner"
+                version={getVersion()}
+                model={currentModel}
+                workingDir={workingDirectory}
+                minimal={false}
+              />
+            );
+          } else {
+            const { msg } = item;
+            return (
+              <Box key={item.key} flexDirection="column">
+                {msg.tools && msg.tools.map(tool => (
+                  <ToolExecutionDisplay
+                    key={tool.id}
+                    execution={tool}
+                    collapsed={!isExpanded}
+                  />
+                ))}
+                <Message
+                  role={msg.role}
+                  content={msg.content}
+                />
+              </Box>
+            );
+          }
+        }}
+        </Static>
+
+        {/* Active section - thinking and streaming */}
+        <Box flexDirection="column" flexShrink={0} flexGrow={0}>
+        {/* Thinking spinner with timer */}
+        {state === 'thinking' && !pendingHITL && (
+          <LiveThinkingDisplay
+            isThinking={true}
+            startTime={thinkingStartTime || undefined}
+            collapsed={true}
+          />
+        )}
+
+        {/* Streaming content */}
+        {state === 'streaming' && (
+          <Box flexDirection="column">
+            {streamingTools.map(tool => (
+              <ToolExecutionDisplay
+                key={tool.id}
+                execution={tool}
+                collapsed={!isExpanded}
+              />
+            ))}
+
+            {streamingContent && (
+              <Message role="assistant" content={stripToolMarkers(streamingContent)} streaming />
+            )}
+          </Box>
+        )}
+
+        {/* Task list */}
+        {tasks.length > 0 && tasksPanelVisible && (
+          <Box flexDirection="column" marginY={1}>
+            <Box>
+              <Text color={colors.secondary}>· </Text>
+              <Text color={colors.text}>Tasks </Text>
+              <Text color={colors.textMuted}>(ctrl+t to toggle)</Text>
+            </Box>
+            <TaskList tasks={tasks} title="" />
+          </Box>
+        )}
+
+        {/* HITL confirmation */}
+        {pendingHITL && (
+          <ConfirmationDialog
+            action={pendingHITL.action}
+            onConfirm={handleHITLConfirm}
+            onDeny={handleHITLDeny}
+            onAlwaysAllow={handleHITLAlwaysAllow}
+          />
+        )}
+
+        {/* Error */}
+        {error && (
+          <Box marginY={1}>
+            <Text color={colors.error}>Error: {error}</Text>
+          </Box>
+        )}
+        </Box>
+      </Box>
+
+      {/* Fixed bottom section - input and status (ALWAYS at bottom) */}
+      <Box flexDirection="column" flexShrink={0} flexGrow={0}>
+        {/* Input - always at bottom */}
+        {state === 'idle' && !pendingHITL && (
+          <ResizableInput
+            onSubmit={processMessage}
+            placeholder="Ask me anything... (Shift+Enter for newline)"
+            borderColor={colors.primary}
+          />
+        )}
+
+        {/* Status bar */}
+        <StatusBar model={currentModel} workingDir={workingDirectory} tokenCount={tokenCount} />
+      </Box>
+    </Box>
+  );
+};
+
+export default App;

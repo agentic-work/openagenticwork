@@ -1,0 +1,890 @@
+#!/usr/bin/env python3
+"""
+MCP Manager - Handles all MCP server instances and routing
+"""
+
+import asyncio
+import json
+import logging
+import os
+import subprocess
+import signal
+import httpx
+import uuid
+import redis
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass
+from enum import Enum
+
+logger = logging.getLogger("mcp-manager")
+
+# Redis key prefix for MCP server enabled states
+REDIS_MCP_ENABLED_PREFIX = "mcp:server:enabled:"
+
+class MCPServerStatus(Enum):
+    STOPPED = "stopped"
+    STARTING = "starting"
+    RUNNING = "running"
+    FAILED = "failed"
+
+@dataclass
+class MCPServerConfig:
+    name: str
+    command: List[str]
+    env: Dict[str, str]
+    transport: str = "stdio"
+    enabled: bool = True
+    supports_obo: bool = False  # Whether this server supports per-request OBO tokens
+
+class MCPServer:
+    def __init__(self, config: MCPServerConfig):
+        self.config = config
+        self.process: Optional[subprocess.Popen] = None
+        self.status = MCPServerStatus.STOPPED
+        self.last_error: Optional[str] = None
+
+    async def start(self):
+        """Start the MCP server process"""
+        if self.status == MCPServerStatus.RUNNING:
+            return
+
+        try:
+            self.status = MCPServerStatus.STARTING
+            logger.info(f"Starting MCP server: {self.config.name}")
+
+            # Merge environment variables
+            env = os.environ.copy()
+            env.update(self.config.env)
+
+            self.process = subprocess.Popen(
+                self.config.command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                text=True,
+                bufsize=0  # Unbuffered for real-time communication
+            )
+
+            # Give it a moment to start
+            await asyncio.sleep(1)
+
+            if self.process.poll() is None:
+                self.status = MCPServerStatus.RUNNING
+                logger.info(f"MCP server {self.config.name} started successfully (PID: {self.process.pid})")
+
+                # Initialize the MCP server (required by MCP protocol)
+                try:
+                    init_request = {
+                        "jsonrpc": "2.0",
+                        "id": 0,
+                        "method": "initialize",
+                        "params": {
+                            "protocolVersion": "2024-11-05",
+                            "capabilities": {},
+                            "clientInfo": {
+                                "name": "mcp-proxy",
+                                "version": "1.0.0"
+                            }
+                        }
+                    }
+                    init_response = await self.send_request(init_request)
+                    if "error" in init_response:
+                        logger.warning(f"MCP server {self.config.name} initialization returned error: {init_response['error']}")
+                    else:
+                        logger.info(f"MCP server {self.config.name} initialized successfully")
+                except Exception as e:
+                    logger.warning(f"Failed to initialize MCP server {self.config.name}: {e}")
+            else:
+                stderr = self.process.stderr.read() if self.process.stderr else "No error output"
+                self.last_error = f"Process exited immediately: {stderr}"
+                self.status = MCPServerStatus.FAILED
+                logger.error(f"MCP server {self.config.name} failed to start: {self.last_error}")
+
+        except Exception as e:
+            self.last_error = str(e)
+            self.status = MCPServerStatus.FAILED
+            logger.error(f"Failed to start MCP server {self.config.name}: {e}")
+
+    async def stop(self):
+        """Stop the MCP server process"""
+        if self.process and self.process.poll() is None:
+            logger.info(f"Stopping MCP server: {self.config.name}")
+            self.process.terminate()
+            try:
+                await asyncio.wait_for(asyncio.to_thread(self.process.wait), timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.warning(f"Force killing MCP server: {self.config.name}")
+                self.process.kill()
+            self.status = MCPServerStatus.STOPPED
+
+    async def send_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Send MCP request to server"""
+        if self.status != MCPServerStatus.RUNNING or not self.process:
+            raise RuntimeError(f"MCP server {self.config.name} is not running")
+
+        try:
+            # Log the request
+            request_id = request.get("id")
+            logger.info(f"[{self.config.name}] REQUEST: {json.dumps(request)}")
+
+            # Send request as JSON-RPC over stdin
+            request_str = json.dumps(request) + "\n"
+            self.process.stdin.write(request_str)
+            self.process.stdin.flush()
+
+            # Read response from stdout - keep reading until we get matching ID
+            # This handles cases where stale responses might be in the buffer
+            max_attempts = 10
+            for attempt in range(max_attempts):
+                response_str = self.process.stdout.readline()
+                if not response_str.strip():
+                    raise RuntimeError("Empty response from MCP server")
+
+                response = json.loads(response_str.strip())
+
+                # Check if response ID matches request ID
+                response_id = response.get("id")
+
+                # Normalize ID types for comparison (string "1" vs int 1)
+                request_id_normalized = str(request_id) if request_id is not None else None
+                response_id_normalized = str(response_id) if response_id is not None else None
+
+                if request_id_normalized == response_id_normalized:
+                    # Log the response
+                    logger.info(f"[{self.config.name}] RESPONSE: {json.dumps(response)}")
+                    return response
+                else:
+                    # Stale response from a different request - skip it
+                    logger.warning(f"[{self.config.name}] Skipping stale response (expected id={request_id}, got id={response_id})")
+                    continue
+
+            raise RuntimeError(f"Failed to get matching response after {max_attempts} attempts")
+
+        except Exception as e:
+            logger.error(f"Error communicating with MCP server {self.config.name}: {e}")
+            # Check if process is still alive
+            if self.process.poll() is not None:
+                self.status = MCPServerStatus.FAILED
+                stderr = self.process.stderr.read() if self.process.stderr else "No error output"
+                self.last_error = f"Process died: {stderr}"
+            raise
+
+class MCPManager:
+    def __init__(self, redis_client: Optional[redis.Redis] = None):
+        self.servers: Dict[str, MCPServer] = {}
+        self.redis_client = redis_client
+        self.initialize_servers()
+
+        # Load runtime enabled states from Redis (overrides build-time config)
+        if self.redis_client:
+            self._load_enabled_states_from_redis()
+
+    def initialize_servers(self):
+        """Initialize all MCP server configurations"""
+
+        # ==========================================
+        # Official Azure MCP (azmcp) - REMOVED
+        # Using only awp-azure-mcp (custom FastMCP with OBO)
+        # ==========================================
+        logger.info("Official Azure MCP (azmcp) disabled - using awp-azure-mcp only")
+
+        # AWP Admin MCP Server - Platform-level admin and infrastructure control (Node.js)
+        # IMPORTANT: This server is ONLY for admin users - access is enforced by proxy
+        if not os.getenv("AWP_ADMIN_MCP_DISABLED", "false").lower() == "true":
+            awp_admin_env = {
+                "DATABASE_URL": os.getenv("DATABASE_URL", ""),
+                "REDIS_URL": os.getenv("REDIS_URL", ""),
+                "REDIS_HOST": os.getenv("REDIS_HOST", "agenticworkchat-redis"),
+                "REDIS_PORT": os.getenv("REDIS_PORT", "6379"),
+                # Milvus configuration
+                "MILVUS_HOST": os.getenv("MILVUS_HOST", "agenticworkchat-milvus"),
+                "MILVUS_PORT": os.getenv("MILVUS_PORT", "19530"),
+                "LOG_LEVEL": "info"
+            }
+
+            # Using Python FastMCP awp-admin-mcp implementation
+            self.servers["awp_admin"] = MCPServer(MCPServerConfig(
+                name="awp_admin",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-admin-mcp/server.py"],
+                env=awp_admin_env
+            ))
+            logger.info("AWP Admin MCP server configured (Python/FastMCP - Platform Admin - ADMIN USERS ONLY)")
+
+        # AWP Kubernetes MCP Server - Kubernetes cluster administration
+        # IMPORTANT: This server is ONLY for admin users - access is enforced by proxy
+        # CRITICAL: The AgenticWork deployment namespace is READ-ONLY for safety
+        if not os.getenv("AWP_KUBERNETES_MCP_DISABLED", "false").lower() == "true":
+            awp_kubernetes_env = {
+                # Protected namespace - the namespace where AgenticWork runs (read-only)
+                "AGENTICWORK_NAMESPACE": os.getenv("AGENTICWORK_NAMESPACE", "agenticwork"),
+                # Kubernetes config is auto-detected (in-cluster or kubeconfig)
+                "LOG_LEVEL": "info"
+            }
+
+            self.servers["awp_kubernetes"] = MCPServer(MCPServerConfig(
+                name="awp_kubernetes",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-kubernetes-mcp/server.py"],
+                env=awp_kubernetes_env
+            ))
+            logger.info("AWP Kubernetes MCP server configured (Python/FastMCP - K8s Admin - ADMIN USERS ONLY)")
+
+        # AWC Formatting MCP Server - DISABLED
+        # Redundant - formatting should be handled via system prompts, not a separate MCP
+        # The LLM should use its native markdown capabilities rather than needing an MCP for formatting
+        # if not os.getenv("AWC_FORMATTING_MCP_DISABLED", "false").lower() == "true":
+        #     awc_formatting_env = {
+        #         "LOG_LEVEL": "info"
+        #     }
+        #
+        #     self.servers["awc_formatting"] = MCPServer(MCPServerConfig(
+        #         name="awc_formatting",
+        #         command=["node", "/app/mcp-servers/awc-formatting-mcp/dist/index.js"],
+        #         env=awc_formatting_env
+        #     ))
+        #     logger.info("AWC Formatting MCP server configured (Chat UI formatting)")
+
+        # Sequential Thinking MCP Server
+        if not os.getenv("SEQUENTIAL_THINKING_MCP_DISABLED", "false").lower() == "true":
+            self.servers["sequential_thinking"] = MCPServer(MCPServerConfig(
+                name="sequential_thinking",
+                command=["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
+                env={}
+            ))
+
+        # Fetch MCP Server - REPLACED by awp-web-mcp
+        # The standard fetch MCP was unreliable. Use awp_web instead for web browsing.
+        # if not os.getenv("FETCH_MCP_DISABLED", "false").lower() == "true":
+        #     self.servers["fetch"] = MCPServer(MCPServerConfig(
+        #         name="fetch",
+        #         command=["uvx", "mcp-server-fetch", "--ignore-robots-txt"],
+        #         env={}
+        #     ))
+        logger.info("Standard fetch MCP disabled - using awp_web MCP instead")
+
+        # AWP Web MCP Server - Intelligent web browsing and research
+        # Features: DuckDuckGo search, page fetching, fact verification, knowledge storage
+        if not os.getenv("AWP_WEB_MCP_DISABLED", "false").lower() == "true":
+            awp_web_env = {
+                "LOG_LEVEL": "info",
+                "REQUEST_TIMEOUT": os.getenv("AWP_WEB_REQUEST_TIMEOUT", "30"),
+                "MEMORY_MCP_URL": os.getenv("MEMORY_MCP_URL", "http://mcp-proxy:3100"),
+            }
+
+            self.servers["awp_web"] = MCPServer(MCPServerConfig(
+                name="awp_web",
+                command=["python", "/app/mcp-servers/awp-web-mcp/server.py"],
+                env=awp_web_env
+            ))
+            logger.info("AWP Web MCP server configured (Intelligent web browsing and research)")
+
+        # AWP Memory MCP Server - REMOVED
+        # Redundant: pipeline memory.stage.ts already does automatic Milvus semantic search
+        # The LLM calling memory tools manually wastes tokens when the pipeline already injects
+        # relevant memories into the context automatically.
+
+        # Azure Cost MCP Server - Azure billing and cost analysis (DEPRECATED: use awc-azure-sdk)
+        azure_cost_env = {
+            "AZURE_TENANT_ID": os.getenv("AZURE_TENANT_ID", ""),
+            "AZURE_CLIENT_ID": os.getenv("AZURE_CLIENT_ID", ""),
+            "AZURE_CLIENT_SECRET": os.getenv("AZURE_CLIENT_SECRET", ""),
+            "AZURE_SUBSCRIPTION_ID": os.getenv("AZURE_SUBSCRIPTION_ID", ""),
+            "LOG_LEVEL": "info"
+        }
+
+        if not os.getenv("AZURE_COST_MCP_DISABLED", "false").lower() == "true":
+            self.servers["azure_cost"] = MCPServer(MCPServerConfig(
+                name="azure_cost",
+                command=["node", "/app/mcp-servers/azure-cost-mcp/dist/index.js"],
+                env=azure_cost_env
+            ))
+
+        # AWP Azure MCP Server - Platform-level FastMCP with OBO
+        # This is our custom Azure MCP with:
+        # - On-Behalf-Of (OBO) authentication flow
+        # - Universal ARM API execution
+        # - Focused set of Azure tools for platform-wide use
+        if not os.getenv("AWP_AZURE_MCP_DISABLED", "false").lower() == "true":
+            # OBO Flow: User token is scoped for Main App (AZURE_CLIENT_ID)
+            # Main App uses its credentials to exchange that token for Azure Management token
+            # This is standard OAuth 2.0 On-Behalf-Of flow
+            awp_azure_env = {
+                "AZURE_TENANT_ID": os.getenv("AZURE_TENANT_ID", ""),
+                # Fallback credentials when NO user token - uses shared service principal
+                "AZURE_CLIENT_ID": os.getenv("AZURE_CLIENT_ID", ""),
+                "AZURE_CLIENT_SECRET": os.getenv("AZURE_CLIENT_SECRET", ""),
+                "AZURE_SUBSCRIPTION_ID": os.getenv("AZURE_SUBSCRIPTION_ID", ""),
+                # OBO credentials - MUST be Main App credentials (not Azure MCP SP)
+                # because user token is scoped for Main App's Application ID URI
+                "AWC_AZURE_OBO_CLIENT_ID": os.getenv("AZURE_CLIENT_ID", ""),
+                "AWC_AZURE_OBO_CLIENT_SECRET": os.getenv("AZURE_CLIENT_SECRET", ""),
+                "LOG_LEVEL": "info"
+            }
+
+            # FastMCP servers must be run via `fastmcp run -t stdio` for stdio transport
+            self.servers["awp_azure"] = MCPServer(MCPServerConfig(
+                name="awp_azure",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-azure-mcp/src/server.py"],
+                env=awp_azure_env,
+                supports_obo=True  # This server supports OBO token injection
+            ))
+            logger.info("AWP Azure MCP server configured (Platform-level FastMCP + OBO)")
+
+        # AWP Azure Cost MCP Server - Azure Cost Management with OBO
+        # Separate from ARM operations for better organization and focused cost analysis
+        if not os.getenv("AWP_AZURE_COST_MCP_DISABLED", "false").lower() == "true":
+            awp_azure_cost_env = {
+                "AZURE_TENANT_ID": os.getenv("AZURE_TENANT_ID", ""),
+                "AZURE_CLIENT_ID": os.getenv("AZURE_CLIENT_ID", ""),
+                "AZURE_CLIENT_SECRET": os.getenv("AZURE_CLIENT_SECRET", ""),
+                "AZURE_SUBSCRIPTION_ID": os.getenv("AZURE_SUBSCRIPTION_ID", ""),
+                "LOG_LEVEL": "info"
+            }
+
+            self.servers["awp_azure_cost"] = MCPServer(MCPServerConfig(
+                name="awp_azure_cost",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-azure-cost-mcp/src/server.py"],
+                env=awp_azure_cost_env,
+                supports_obo=True  # This server supports OBO token injection
+            ))
+            logger.info("AWP Azure Cost MCP server configured (Cost Management + OBO)")
+
+        # AWP GCP MCP Server - Google Cloud Platform management via Service Account
+        # Uses service account authentication (no OBO - GCP SSO not used)
+        if not os.getenv("AWP_GCP_MCP_DISABLED", "false").lower() == "true":
+            awp_gcp_env = {
+                "GCP_PROJECT_ID": os.getenv("GCP_PROJECT_ID", ""),
+                "GCP_CREDENTIALS_JSON": os.getenv("GCP_CREDENTIALS_JSON", ""),
+                "GCP_CREDENTIALS_FILE": os.getenv("GCP_CREDENTIALS_FILE", ""),
+                "GCP_REGION": os.getenv("GCP_REGION", "us-central1"),
+                "LOG_LEVEL": "info"
+            }
+
+            self.servers["awp_gcp"] = MCPServer(MCPServerConfig(
+                name="awp_gcp",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-gcp-mcp/src/server.py"],
+                env=awp_gcp_env,
+                supports_obo=False  # GCP uses service account auth, not OBO
+            ))
+            logger.info("AWP GCP MCP server configured (Platform-level GCP management)")
+
+        # AWP AWS MCP Server - AWS Operations with Azure AD OBO via OIDC Federation
+        # Uses Azure AD ID token → AWS STS AssumeRoleWithWebIdentity → temporary credentials
+        if not os.getenv("AWP_AWS_MCP_DISABLED", "false").lower() == "true":
+            awp_aws_env = {
+                "AWS_REGION": os.getenv("AWS_REGION", ""),
+                # AWS OIDC Federation configuration for OBO (Azure AD → STS)
+                "AWS_OBO_ROLE_ARN": os.getenv("AWS_OBO_ROLE_ARN", ""),  # IAM role to assume via web identity
+                "AWS_ACCOUNT_ID": os.getenv("AWS_ACCOUNT_ID", ""),  # Fallback for constructing role ARN
+                # AWS Identity Center configuration (legacy - kept for backwards compat)
+                "AWS_IC_INSTANCE_ARN": os.getenv("AWS_IC_INSTANCE_ARN", ""),
+                "AWS_IC_APPLICATION_ARN": os.getenv("AWS_IC_APPLICATION_ARN", ""),
+                # Fallback credentials when NO user token
+                "AWS_ACCESS_KEY_ID": os.getenv("AWS_ACCESS_KEY_ID", ""),
+                "AWS_SECRET_ACCESS_KEY": os.getenv("AWS_SECRET_ACCESS_KEY", ""),
+                # Redis for credential caching
+                "REDIS_HOST": os.getenv("REDIS_HOST", "redis"),
+                "REDIS_PORT": os.getenv("REDIS_PORT", "6379"),
+                "REDIS_PASSWORD": os.getenv("REDIS_PASSWORD", ""),
+                "LOG_LEVEL": "info"
+            }
+
+            self.servers["awp_aws"] = MCPServer(MCPServerConfig(
+                name="awp_aws",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-aws-mcp/server.py"],
+                env=awp_aws_env,
+                supports_obo=True  # This server supports OBO token injection (Azure AD → AWS IC)
+            ))
+            logger.info("AWP AWS MCP server configured (AWS via Azure AD OBO + Identity Center)")
+
+        # VMware MCP Server (if enabled) - VMware infrastructure management
+        vmware_env = {
+            "VMWARE_HOST": os.getenv("VMWARE_HOST", ""),
+            "VMWARE_USERNAME": os.getenv("VMWARE_USERNAME", ""),
+            "VMWARE_PASSWORD": os.getenv("VMWARE_PASSWORD", ""),
+            "LOG_LEVEL": "info"
+        }
+
+        if not os.getenv("VMWARE_MCP_DISABLED", "true").lower() == "true":
+            self.servers["vmware"] = MCPServer(MCPServerConfig(
+                name="vmware",
+                command=["node", "/app/mcp-servers/vmware-mcp-server/dist/index.js"],
+                env=vmware_env
+            ))
+
+        # AWP Prometheus MCP Server - Platform-level metrics querying and visualization
+        # Check both env var names for backwards compatibility
+        prometheus_disabled = os.getenv("PROMETHEUS_MCP_DISABLED", os.getenv("AWP_PROMETHEUS_MCP_DISABLED", "false")).lower() == "true"
+        if not prometheus_disabled:
+            awp_prometheus_env = {
+                "PROMETHEUS_URL": os.getenv("PROMETHEUS_URL", "http://prometheus:9090"),
+                "LOG_LEVEL": "info"
+            }
+
+            self.servers["awp_prometheus"] = MCPServer(MCPServerConfig(
+                name="awp_prometheus",
+                command=["prometheus-mcp-server"],
+                env=awp_prometheus_env
+            ))
+            logger.info("AWP Prometheus MCP server configured (Platform-level monitoring)")
+
+        # AWP Flowise MCP Server - Platform-level unified workflow management for Flowise
+        # Now with OBO support for per-user workspace isolation
+        # IMPORTANT: FLOWISE_URL must go through the API proxy (/api/flowise-workspace) for workspace injection
+        if not os.getenv("AWP_FLOWISE_MCP_DISABLED", "false").lower() == "true":
+            # Get API URL for workspace proxy - this is where OBO workspace context is injected
+            api_internal_url = os.getenv("API_INTERNAL_URL", "http://agenticwork-api:8000")
+            flowise_proxy_url = f"{api_internal_url}/api/flowise-workspace"
+
+            awp_flowise_env = {
+                # FLOWISE_URL goes through API proxy for workspace injection (OBO)
+                "FLOWISE_URL": os.getenv("FLOWISE_URL", flowise_proxy_url),
+                # Direct URL for admin operations that don't need workspace context
+                "FLOWISE_DIRECT_URL": os.getenv("FLOWISE_DIRECT_URL", "http://agenticwork-flowise:3000"),
+                # API URL for validating tokens and looking up workspace info
+                "API_INTERNAL_URL": api_internal_url,
+                "FLOWISE_API_KEY": os.getenv("FLOWISE_API_KEY", ""),
+                "FLOWISE_ADMIN_TOKEN": os.getenv("FLOWISE_ADMIN_TOKEN", ""),  # Super-admin token for cross-workspace ops
+                "FLOWISE_DEFAULT_WORKSPACE_ID": os.getenv("FLOWISE_DEFAULT_WORKSPACE_ID", ""),  # BUG-001 fix: fallback workspace
+                "APP_BASE_URL": os.getenv("APP_BASE_URL", "https://chat-dev.agenticwork.io"),
+                "LOG_LEVEL": "info"
+            }
+
+            # Use fastmcp run for proper stdio transport (same as awp_azure)
+            self.servers["awp_flowise"] = MCPServer(MCPServerConfig(
+                name="awp_flowise",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-flowise-mcp/server.py"],
+                env=awp_flowise_env,
+                supports_obo=True  # Enable OBO token injection for per-user workspace isolation
+            ))
+            logger.info("AWP Flowise MCP server configured (Platform-level workflow management + OBO)")
+
+        # n8n MCP removed - functionality deprecated
+
+        # AWP Diagram MCP Server - DISABLED
+        # The LLM now renders diagrams inline using React Flow, Venn, and DataChart components
+        # in the chat UI. This avoids duplicate rendering (both inline AND MCP tool call).
+        # Re-enable by setting AWP_DIAGRAM_MCP_DISABLED=false
+        # if not os.getenv("AWP_DIAGRAM_MCP_DISABLED", "true").lower() == "true":
+        #     awp_diagram_env = {
+        #         "LOG_LEVEL": "info"
+        #     }
+        #
+        #     self.servers["awp_diagram"] = MCPServer(MCPServerConfig(
+        #         name="awp_diagram",
+        #         command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-diagram-mcp/server.py"],
+        #         env=awp_diagram_env,
+        #         supports_obo=False  # Diagrams don't need user context
+        #     ))
+        #     logger.info("AWP Diagram MCP server configured (React Flow + DrawIO diagram generation)")
+        logger.info("AWP Diagram MCP disabled - LLM renders diagrams inline via React Flow/Venn/DataChart")
+
+        # AWP Draw.io MCP - DEPRECATED: Merged into awp_diagram MCP
+        # The awp_diagram MCP now handles both React Flow and DrawIO formats
+
+        # AWP AgentiCode MCP Server - Code execution through AgentiCode Manager
+        # Enables the LLM to ACTUALLY execute code, not just pretend:
+        # - execute_code: Write and run Python, Go, Bash, JS, etc.
+        # - run_shell_command: Execute shell commands
+        # - write_file/read_file: File operations in user's workspace
+        # Per-user isolation via session management
+        if not os.getenv("AWP_AGENTICODE_MCP_DISABLED", "false").lower() == "true":
+            awp_agenticode_env = {
+                "AGENTICODE_MANAGER_URL": os.getenv("AGENTICODE_MANAGER_URL", "http://agenticode-manager:3050"),
+                "AGENTICWORK_API_URL": os.getenv("AGENTICWORK_API_URL", "http://agenticwork-api:8000"),
+                "MCP_SERVICE_AUTH_KEY": os.getenv("MCP_SERVICE_AUTH_KEY", ""),  # Service-to-service auth for RBAC checks
+                "INTERNAL_API_KEY": os.getenv("CODE_MANAGER_INTERNAL_KEY", ""),  # Auth key for agenticode-manager
+                "LOG_LEVEL": "info"
+            }
+
+            self.servers["awp_agenticode"] = MCPServer(MCPServerConfig(
+                name="awp_agenticode",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-agenticode-mcp/server.py"],
+                env=awp_agenticode_env,
+                supports_obo=False  # Uses user_id parameter for isolation, not OBO token
+            ))
+            logger.info("AWP AgentiCode MCP server configured (SAFE MODE - read/write only, no execution)")
+
+        # AWP AgenticWork CLI MCP Server - Controlled Agentic Workflows via Serverless CLI
+        # Provides structured agentic task execution through the AgentiCode CLI
+        # Tools:
+        # - run_agenticode_task: Execute agentic prompts via serverless CLI
+        # - run_code_generation: Generate code artifacts with controlled execution
+        # - run_file_operation: Perform file transformations (e.g., PDF to DOCX)
+        # - check_agenticode_status: Check serverless execution availability
+        # Uses code-manager's /serverless endpoints for isolated one-shot execution
+        if not os.getenv("AWP_AGENTICWORK_CLI_MCP_DISABLED", "false").lower() == "true":
+            awp_agenticwork_cli_env = {
+                "AGENTICODE_MANAGER_URL": os.getenv("AGENTICODE_MANAGER_URL", "http://agenticode-manager:3050"),
+                "AGENTICWORK_API_URL": os.getenv("AGENTICWORK_API_URL", "http://agenticwork-api:8000"),
+                "MCP_SERVICE_AUTH_KEY": os.getenv("MCP_SERVICE_AUTH_KEY", ""),  # Service-to-service auth
+                "INTERNAL_API_KEY": os.getenv("CODE_MANAGER_INTERNAL_KEY", ""),  # Auth key for agenticode-manager
+                "LOG_LEVEL": "info"
+            }
+
+            self.servers["awp_agenticwork_cli"] = MCPServer(MCPServerConfig(
+                name="awp_agenticwork_cli",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-agenticwork-cli-mcp/server.py"],
+                env=awp_agenticwork_cli_env,
+                supports_obo=False  # Uses user_id and api_key parameters for per-user isolation
+            ))
+            logger.info("AWP AgenticWork CLI MCP server configured (Controlled agentic workflows via serverless CLI)")
+
+        # AWP ServiceNow MCP Server - Incident, Change, and Service Request management
+        # Uses Azure AD OBO for per-user access to their ServiceNow tickets
+        # User logs into AgenticWork, then can manage their SNOW tickets via LLM
+        if not os.getenv("AWP_SERVICENOW_MCP_DISABLED", "true").lower() == "true":
+            awp_servicenow_env = {
+                # ServiceNow instance
+                "SERVICENOW_INSTANCE_URL": os.getenv("SERVICENOW_INSTANCE_URL", ""),
+                "SERVICENOW_CLIENT_ID": os.getenv("SERVICENOW_CLIENT_ID", ""),
+                "SERVICENOW_CLIENT_SECRET": os.getenv("SERVICENOW_CLIENT_SECRET", ""),
+                # Azure AD for OBO token exchange
+                "AZURE_TENANT_ID": os.getenv("AZURE_TENANT_ID", ""),
+                "AZURE_CLIENT_ID": os.getenv("AZURE_CLIENT_ID", ""),
+                "AZURE_CLIENT_SECRET": os.getenv("AZURE_CLIENT_SECRET", ""),
+                # Fallback service account (when no user token)
+                "SERVICENOW_USERNAME": os.getenv("SERVICENOW_USERNAME", ""),
+                "SERVICENOW_PASSWORD": os.getenv("SERVICENOW_PASSWORD", ""),
+                "LOG_LEVEL": "info"
+            }
+
+            self.servers["awp_servicenow"] = MCPServer(MCPServerConfig(
+                name="awp_servicenow",
+                command=["fastmcp", "run", "-t", "stdio", "/app/mcp-servers/awp-servicenow-mcp/src/server.py"],
+                env=awp_servicenow_env,
+                supports_obo=True  # Uses Azure AD token exchange for per-user SNOW access
+            ))
+            logger.info("AWP ServiceNow MCP server configured (Incident/Change/Request management + OBO)")
+
+        # AWS MCP Servers (if enabled)
+        # AWS Knowledge MCP Server - Remote AWS-hosted service for docs, APIs, best practices
+        # Provides guidance on how to use AWS APIs - complements our awp_aws MCP
+        if not os.getenv("AWS_KNOWLEDGE_MCP_DISABLED", "false").lower() == "true":
+            self.servers["aws_knowledge"] = MCPServer(MCPServerConfig(
+                name="aws_knowledge",
+                command=["uvx", "fastmcp", "run", "https://knowledge-mcp.global.api.aws"],
+                env={"AWS_REGION": os.getenv("AWS_REGION", "")}
+            ))
+            logger.info("AWS Knowledge MCP server configured (AWS docs and best practices)")
+
+        logger.info(f"Initialized {len(self.servers)} MCP servers")
+
+    async def start_all(self):
+        """Start all enabled MCP servers"""
+        logger.info("Starting all MCP servers...")
+
+        for name, server in self.servers.items():
+            if server.config.enabled:
+                await server.start()
+            else:
+                logger.info(f"Skipping disabled MCP server: {name}")
+
+    async def stop_all(self):
+        """Stop all MCP servers"""
+        logger.info("Stopping all MCP servers...")
+
+        for server in self.servers.values():
+            await server.stop()
+
+    async def route_request(self, server_name: str, request: Dict[str, Any], user_token: Optional[str] = None) -> Dict[str, Any]:
+        """Route MCP request to specific server with optional user context (OBO token)"""
+
+        # Handle MCP servers (stdio)
+        if server_name not in self.servers:
+            raise ValueError(f"Unknown MCP server: {server_name}")
+
+        server = self.servers[server_name]
+
+        if server.status != MCPServerStatus.RUNNING:
+            raise RuntimeError(f"MCP server {server_name} is not running (status: {server.status.value})")
+
+        # Inject user token into request params for OBO authentication
+        # The MCP server can extract this from meta.userAccessToken
+        # NOTE: FastMCP 2.0+ doesn't allow parameters starting with underscore, so we use "meta" not "_meta"
+        if user_token and request.get("method") == "tools/call":
+            if "params" not in request:
+                request["params"] = {}
+            # FIX: Check if arguments is missing OR is None
+            if "arguments" not in request["params"] or request["params"]["arguments"] is None:
+                request["params"]["arguments"] = {}
+            # FIX: Check if meta is missing OR is None
+            if "meta" not in request["params"]["arguments"] or request["params"]["arguments"]["meta"] is None:
+                request["params"]["arguments"]["meta"] = {}
+            request["params"]["arguments"]["meta"]["userAccessToken"] = user_token
+            logger.debug(f"Injected user access token into request for {server_name}")
+
+        return await server.send_request(request)
+
+
+    def get_server_status(self) -> Dict[str, Any]:
+        """Get status of all MCP servers"""
+        status = {}
+
+        # Add all MCP servers (stdio processes)
+        for name, server in self.servers.items():
+            status[name] = {
+                "status": server.status.value,
+                "enabled": server.config.enabled,
+                "last_error": server.last_error,
+                "transport": "stdio",
+                "pid": server.process.pid if server.process else None
+            }
+        return status
+
+    async def add_server(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Add a new MCP server dynamically from configuration.
+
+        Supports two formats:
+        1. Flat format: {"name": "kubernetes", "command": "npx", "args": ["-y", "kubernetes-mcp-server@latest"]}
+        2. Claude Desktop format: {"mcpServers": {"kubernetes": {"command": "npx", "args": ["-y", "..."]}}}
+        """
+        # Check if this is Claude Desktop format (has mcpServers wrapper)
+        if "mcpServers" in config:
+            # Extract the first server from mcpServers
+            mcp_servers = config["mcpServers"]
+            if not mcp_servers:
+                raise ValueError("mcpServers object is empty")
+
+            # Get the first (and usually only) server
+            server_name = list(mcp_servers.keys())[0]
+            server_config = mcp_servers[server_name]
+
+            # Merge extracted config
+            config = {
+                "name": server_name,
+                **server_config
+            }
+
+        # Validate required fields
+        name = config.get("name")
+        command = config.get("command")
+
+        if not name:
+            raise ValueError("Server configuration must include 'name'")
+        if not command:
+            raise ValueError("Server configuration must include 'command'")
+
+        # Check if server already exists
+        if name in self.servers:
+            raise ValueError(f"Server '{name}' already exists. Use restart or remove first.")
+
+        # Build command list
+        args = config.get("args", [])
+        if isinstance(command, str):
+            # Command is a string, combine with args
+            command_list = [command] + args
+        elif isinstance(command, list):
+            # Command is already a list
+            command_list = command
+        else:
+            raise ValueError("'command' must be a string or list")
+
+        # Get optional configuration
+        env = config.get("env", {})
+        transport = config.get("transport", "stdio")
+        enabled = config.get("enabled", True)
+        supports_obo = config.get("supports_obo", False)
+
+        # Create the server configuration
+        server_config = MCPServerConfig(
+            name=name,
+            command=command_list,
+            env=env,
+            transport=transport,
+            enabled=enabled,
+            supports_obo=supports_obo
+        )
+
+        # Create and add the server
+        server = MCPServer(server_config)
+        self.servers[name] = server
+
+        logger.info(f"Added MCP server: {name} with command: {command_list}")
+
+        # Auto-start if enabled
+        if enabled:
+            await server.start()
+
+        return {
+            "name": name,
+            "status": server.status.value,
+            "command": command_list,
+            "enabled": enabled,
+            "transport": transport
+        }
+
+    async def start_server(self, server_id: str) -> None:
+        """Start a specific MCP server by ID"""
+        if server_id not in self.servers:
+            raise ValueError(f"Unknown server: {server_id}")
+
+        server = self.servers[server_id]
+        await server.start()
+        logger.info(f"Started server: {server_id}")
+
+    async def stop_server(self, server_id: str) -> None:
+        """Stop a specific MCP server by ID"""
+        if server_id not in self.servers:
+            raise ValueError(f"Unknown server: {server_id}")
+
+        server = self.servers[server_id]
+        await server.stop()
+        logger.info(f"Stopped server: {server_id}")
+
+    async def remove_server(self, server_id: str) -> None:
+        """Remove a server from management (stops it first if running)"""
+        if server_id not in self.servers:
+            raise ValueError(f"Unknown server: {server_id}")
+
+        server = self.servers[server_id]
+
+        # Stop the server if running
+        if server.status == MCPServerStatus.RUNNING:
+            await server.stop()
+
+        # Remove from servers dict
+        del self.servers[server_id]
+        logger.info(f"Removed server: {server_id}")
+
+    async def delete_server(self, server_id: str) -> None:
+        """Alias for remove_server - delete a server from management"""
+        await self.remove_server(server_id)
+
+    async def restart_server(self, server_id: str) -> None:
+        """Restart a specific MCP server by ID"""
+        if server_id not in self.servers:
+            raise ValueError(f"Unknown server: {server_id}")
+
+        server = self.servers[server_id]
+        await server.stop()
+        await server.start()
+        logger.info(f"Restarted server: {server_id}")
+
+    async def list_all_tools(self) -> Dict[str, List[Dict[str, Any]]]:
+        """List tools from all running MCP servers"""
+        all_tools = {}
+
+        # Get MCP server tools via stdio
+        for name, server in self.servers.items():
+            if server.status == MCPServerStatus.RUNNING:
+                try:
+                    # MCP spec: params is optional for tools/list
+                    # Try without params first (some servers like mcp-server-fetch reject empty params)
+                    # Use unique ID to avoid response collisions
+                    unique_id = f"list-tools-{name}-{uuid.uuid4().hex[:8]}"
+                    request = {
+                        "jsonrpc": "2.0",
+                        "id": unique_id,
+                        "method": "tools/list"
+                    }
+                    response = await server.send_request(request)
+
+                    # If error -32602 (Invalid params), retry with empty params object
+                    if "error" in response and response["error"].get("code") == -32602:
+                        logger.info(f"[{name}] Retrying tools/list with empty params object")
+                        unique_id = f"list-tools-retry-{name}-{uuid.uuid4().hex[:8]}"
+                        request["id"] = unique_id
+                        request["params"] = {}
+                        response = await server.send_request(request)
+
+                    if "result" in response and "tools" in response["result"]:
+                        all_tools[name] = response["result"]["tools"]
+                        logger.info(f"Loaded {len(response['result']['tools'])} tools from {name}")
+                    else:
+                        all_tools[name] = []
+
+                except Exception as e:
+                    logger.error(f"Failed to list tools from {name}: {e}")
+                    all_tools[name] = []
+
+        return all_tools
+
+    def _load_enabled_states_from_redis(self):
+        """Load runtime enabled states from Redis (overrides build-time config)"""
+        if not self.redis_client:
+            return
+
+        try:
+            for server_name in self.servers:
+                redis_key = f"{REDIS_MCP_ENABLED_PREFIX}{server_name}"
+                value = self.redis_client.get(redis_key)
+                if value is not None:
+                    # Value stored as b'true' or b'false'
+                    enabled = value.decode('utf-8').lower() == 'true'
+                    self.servers[server_name].config.enabled = enabled
+                    logger.info(f"[Redis] Loaded enabled state for {server_name}: {enabled}")
+        except Exception as e:
+            logger.error(f"Failed to load enabled states from Redis: {e}")
+
+    def _save_enabled_state_to_redis(self, server_name: str, enabled: bool):
+        """Save server enabled state to Redis for persistence"""
+        if not self.redis_client:
+            logger.warning(f"Redis not available, enabled state for {server_name} not persisted")
+            return False
+
+        try:
+            redis_key = f"{REDIS_MCP_ENABLED_PREFIX}{server_name}"
+            self.redis_client.set(redis_key, str(enabled).lower())
+            logger.info(f"[Redis] Saved enabled state for {server_name}: {enabled}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save enabled state to Redis for {server_name}: {e}")
+            return False
+
+    async def set_server_enabled(self, server_id: str, enabled: bool) -> Dict[str, Any]:
+        """
+        Enable or disable an MCP server at runtime.
+
+        - When enabled=True: Sets config.enabled=True and starts the server if not running
+        - When enabled=False: Sets config.enabled=False and stops the server if running
+
+        State is persisted to Redis so it survives restarts.
+        """
+        if server_id not in self.servers:
+            raise ValueError(f"Unknown server: {server_id}")
+
+        server = self.servers[server_id]
+        previous_state = server.config.enabled
+
+        # Update the enabled state
+        server.config.enabled = enabled
+
+        # Persist to Redis
+        persisted = self._save_enabled_state_to_redis(server_id, enabled)
+
+        # Start or stop based on new state
+        action_taken = None
+        if enabled and server.status != MCPServerStatus.RUNNING:
+            # Enable and start
+            await server.start()
+            action_taken = "started"
+            logger.info(f"Server {server_id} enabled and started")
+        elif not enabled and server.status == MCPServerStatus.RUNNING:
+            # Disable and stop
+            await server.stop()
+            action_taken = "stopped"
+            logger.info(f"Server {server_id} disabled and stopped")
+        else:
+            action_taken = "no_change"
+            logger.info(f"Server {server_id} enabled={enabled}, no process change needed")
+
+        return {
+            "server_id": server_id,
+            "enabled": enabled,
+            "previous_enabled": previous_state,
+            "status": server.status.value,
+            "action": action_taken,
+            "persisted_to_redis": persisted
+        }
+
+    def get_server_enabled(self, server_id: str) -> bool:
+        """Get the enabled state of a specific server"""
+        if server_id not in self.servers:
+            raise ValueError(f"Unknown server: {server_id}")
+        return self.servers[server_id].config.enabled
+
+    def list_server_enabled_states(self) -> Dict[str, bool]:
+        """List enabled state for all servers"""
+        return {name: server.config.enabled for name, server in self.servers.items()}

@@ -1,0 +1,224 @@
+/**
+ * @copyright 2005 Agenticwork LLC
+ * @license PROPRIETARY
+ * 
+ * This file is the exclusive property of Agenticwork LLC. All rights reserved.
+ * 
+ * NOTICE: This source code is proprietary and confidential. It contains trade
+ * secrets and proprietary information that is the exclusive property of
+ * Agenticwork LLC. Any unauthorized use, reproduction, distribution, or
+ * disclosure of this material is strictly prohibited.
+ * 
+ * No part of this source code may be reproduced, stored in a retrieval system,
+ * or transmitted in any form or by any means (electronic, mechanical,
+ * photocopying, recording, or otherwise) without the prior written permission
+ * of Agenticwork LLC.
+ * 
+ * This software is provided "as is" without warranty of any kind, either
+ * express or implied, including but not limited to the implied warranties of
+ * merchantability, fitness for a particular purpose, or non-infringement.
+ * 
+ * For licensing inquiries, please contact:
+ * Agenticwork LLC
+ * legal@agenticwork.io
+ */
+
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { MessageCircle, Settings as SettingsIcon, Coins, LineChart, Shield } from '@/shared/icons';
+import { motion } from 'framer-motion';
+import AADLogin from '@/features/auth/components/AADLogin';
+import { useAuth } from '@/app/providers/AuthContext';
+
+interface LayoutProps {
+  children: React.ReactNode;
+  theme: 'light' | 'dark';
+  onNewChat?: () => void;
+  onToggleTokens?: () => void;
+  onOpenMonitor?: () => void;
+  onToggleSidebar?: () => void;
+  showTokens?: boolean;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children, theme, onNewChat, onToggleTokens, onOpenMonitor, onToggleSidebar, showTokens }) => {
+  const location = useLocation();
+  const { user } = useAuth();
+  const isOnChat = location.pathname === '/';
+  
+  // Check if user is admin
+  const adminGroup = import.meta.env.VITE_AZURE_AD_ADMIN_GROUP || 'AgenticWorkAdmins';
+  const isAdmin = user?.groups?.includes(adminGroup) || false;
+  
+  const navItems = [
+    { path: '/', icon: MessageCircle, label: 'Chat' }
+  ];
+  
+  // Get onToggleTools from props if available
+  const onToggleTools = (window as any).__toggleMCPFunctions;
+  
+  // Action buttons - removed Token Usage as it's now in settings dropdown
+  const actionButtons: any[] = [
+    // Token Usage moved to settings dropdown in Chat component
+  ];
+  
+  return (
+    <div className="flex h-screen relative">
+      {/* Background is now global in App.tsx via WebGLBackground */}
+
+      {/* Sidebar */}
+      <aside className="w-16 glass-adaptive flex flex-col items-center py-6 relative z-20">
+        <nav className="space-y-2">
+          {navItems.map(({ path, icon: Icon, label }) => {
+            const isActive = location.pathname === path;
+
+            // Special handling for chat icon with sidebar toggle
+            if (path === '/' && onToggleSidebar) {
+              return (
+                <div key={path} className="relative group">
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={onToggleSidebar}
+                    className={`p-3 rounded-lg transition-all ${
+                      isActive
+                        ? 'theme-bg-secondary theme-text-primary'
+                        : 'theme-text-secondary hover:theme-text-primary hover:theme-bg-secondary/50'
+                    }`}
+                  >
+                    <Icon size={20} />
+                  </motion.button>
+                  
+                  {/* Tooltip */}
+                  <div className="absolute left-full ml-2 px-2 py-1 rounded theme-bg-tertiary theme-text-primary text-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                    Toggle Chats
+                  </div>
+                </div>
+              );
+            }
+            
+            return (
+              <Link
+                key={path}
+                to={path}
+                className="relative group"
+                title={label}
+              >
+                <motion.div
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`p-3 rounded-lg transition-all ${
+                    isActive
+                      ? 'theme-bg-secondary theme-text-primary'
+                      : 'theme-text-secondary hover:theme-text-primary hover:theme-bg-secondary/50'
+                  }`}
+                >
+                  <Icon size={20} />
+                </motion.div>
+                
+                {/* Tooltip */}
+                <div className="absolute left-full ml-2 px-2 py-1 rounded theme-bg-tertiary theme-text-primary text-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap">
+                  {label}
+                </div>
+              </Link>
+            );
+          })}
+          
+          {/* Action buttons - moved here under chat icon */}
+          {actionButtons.length > 0 && actionButtons.map(({ action, icon: Icon, label, active }) => (
+                <motion.div key={label} className="relative group">
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={action}
+                    disabled={!action}
+                    className={`p-3 rounded-lg transition-all ${
+                      !action
+                        ? 'theme-text-muted cursor-not-allowed'
+                        : active
+                        ? 'bg-info theme-text-primary'
+                        : 'theme-text-secondary hover:theme-text-primary hover:theme-bg-secondary/50'
+                    }`}
+                  >
+                    <Icon size={20} />
+                  </motion.button>
+                  
+                  {/* Tooltip */}
+                  <div className="absolute left-full ml-2 px-2 py-1 rounded theme-bg-tertiary theme-text-primary text-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                    {label}
+                  </div>
+                </motion.div>
+          ))}
+        </nav>
+        
+        {/* Spacer */}
+        <div className="flex-1" />
+        
+        {/* Settings and Admin at the bottom */}
+        <div className="mb-6 space-y-2">
+          {/* Admin Portal - Only visible to admins */}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className="relative group block"
+            >
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                className={`p-3 rounded-lg transition-all ${
+                  location.pathname === '/admin'
+                    ? 'bg-error theme-text-primary'
+                    : 'theme-text-secondary hover:theme-text-primary hover:theme-bg-secondary/50'
+                }`}
+              >
+                <Shield size={20} />
+              </motion.div>
+              
+              {/* Tooltip */}
+              <div className="absolute left-full ml-2 px-2 py-1 rounded theme-bg-tertiary theme-text-primary text-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
+                Admin Portal
+              </div>
+            </Link>
+          )}
+          
+          <Link
+            to="/settings"
+            className="relative group block"
+            title="Settings"
+          >
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              className={`p-3 rounded-lg transition-all ${
+                location.pathname === '/settings'
+                  ? 'theme-bg-secondary theme-text-primary'
+                  : 'theme-text-secondary hover:theme-text-primary hover:theme-bg-secondary/50'
+              }`}
+            >
+              <SettingsIcon size={20} />
+            </motion.div>
+            
+            {/* Tooltip */}
+            <div className="absolute left-full ml-2 px-2 py-1 rounded theme-bg-tertiary theme-text-primary text-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap">
+              Settings
+            </div>
+          </Link>
+        </div>
+      </aside>
+      
+      {/* Main content */}
+      <main className="flex-1 flex flex-col overflow-hidden relative z-10">
+        {/* Header with auth */}
+        <header className="glass-adaptive px-6 py-4 flex justify-end items-center relative z-10">
+          <AADLogin />
+        </header>
+        
+        {/* Content area */}
+        <div className="flex-1 overflow-hidden">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Layout;
