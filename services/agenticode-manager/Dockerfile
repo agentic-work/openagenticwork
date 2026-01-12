@@ -189,7 +189,7 @@ WORKDIR /app
 # Copy and build CLI
 COPY agenticode-cli ./agenticode
 WORKDIR /app/agenticode
-RUN npm install --omit=dev
+RUN npm install && npm run build && rm -rf node_modules && npm install --omit=dev
 WORKDIR /app
 
 # Link SDK into CLI
